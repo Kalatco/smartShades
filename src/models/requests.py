@@ -41,6 +41,9 @@ class BlindConfig(BaseModel):
 
     id: str = Field(..., description="Device ID")
     name: str = Field(..., description="Friendly name")
+    orientation: Optional[str] = Field(
+        default="south", description="Window orientation: north, south, east, west"
+    )
 
 
 class RoomConfig(BaseModel):
@@ -53,10 +56,26 @@ class HubitatConfig(BaseModel):
     """Hubitat configuration"""
 
     rooms: Dict[str, RoomConfig] = Field(..., description="Room configurations")
-    makerApiId: str = Field(..., description="Maker API ID")
-    accessToken: str = Field(..., description="Access token")
-    hubitatUrl: str = Field(..., description="Hubitat hub URL")
+    makerApiId: Optional[str] = Field(default=None, description="Maker API ID")
+    accessToken: Optional[str] = Field(default=None, description="Access token")
+    hubitatUrl: Optional[str] = Field(default=None, description="Hubitat hub URL")
     location: str = Field(..., description="Location description")
+    latitude: Optional[float] = Field(
+        default=None, description="Latitude for solar calculations"
+    )
+    longitude: Optional[float] = Field(
+        default=None, description="Longitude for solar calculations"
+    )
+    timezone: Optional[str] = Field(
+        default="UTC",
+        description="Timezone for solar calculations (e.g., 'America/Los_Angeles')",
+    )
+    house_orientation: Optional[str] = Field(
+        default=None, description="House orientation (e.g., 'east-west', 'north-south')"
+    )
+    notes: Optional[str] = Field(
+        default=None, description="Additional notes about the house layout"
+    )
 
 
 class AgentState(BaseModel):
@@ -69,18 +88,38 @@ class AgentState(BaseModel):
     config: Optional[HubitatConfig] = Field(default=None)
 
 
+class BlindOperation(BaseModel):
+    """Individual blind operation with position"""
+
+    blind_filter: List[str] = Field(
+        ..., description="Keywords to match blind names (e.g., ['side'], ['front'])"
+    )
+    position: int = Field(..., ge=0, le=100, description="Target position (0-100%)")
+    reasoning: str = Field(..., description="Explanation for this specific blind")
+
+
 class ShadeAnalysis(BaseModel):
     """Structured response from LLM for shade control analysis"""
 
-    position: int = Field(..., ge=0, le=100, description="Target position (0-100%)")
+    operations: List[BlindOperation] = Field(
+        default_factory=list,
+        description="List of blind operations with individual positions",
+    )
     scope: Literal["specific", "room", "house"] = Field(
         ..., description="Control scope"
     )
+    # Legacy support for single operation commands
+    position: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="Target position for single operation (0-100%)",
+    )
     blind_filter: List[str] = Field(
         default_factory=list,
-        description="Keywords to match blind names (empty for all)",
+        description="Keywords to match blind names for single operation (empty for all)",
     )
-    reasoning: str = Field(..., description="Explanation of the decision")
+    reasoning: str = Field(..., description="Overall explanation of the decision")
 
 
 class ExecutionResult(BaseModel):

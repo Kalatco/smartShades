@@ -4,15 +4,18 @@
       "blinds": [
         {
           "id": "2",
-          "name": "Master Side Window"
+          "name": "Master Side Window",
+          "orientation": "North"
         },
         {
           "id": "3",
-          "name": "Master Front Window"
+          "name": "Master Front Window",
+          "orientation": "East"
         },
         {
           "id": "4",
-          "name": "Master Ceiling Window"
+          "name": "Master Ceiling Window",
+          "orientation": "North"
         }
       ]
     },
@@ -20,17 +23,22 @@
       "blinds": [
         {
           "id": "5",
-          "name": "Guest Side Window"
+          "name": "Guest Side Window",
+          "orientation": "North"
         },
         {
           "id": "6",
-          "name": "Guest Front Window"
+          "name": "Guest Front Window",
+          "orientation": "East"
         }
       ]
     }
   },
   "makerApiId": "21",
-  "accessToken": "3003c3ef-37bb-4275-965a-8e9730baf815",
-  "hubitatUrl": "http://192.168.0.2",
-  "location": "Seattle, WA"
+  "location": "Seattle, WA",
+  "latitude": 47.6062,
+  "longitude": -122.3321,
+  "timezone": "America/Los_Angeles",
+  "house_orientation": "east-west",
+  "notes": "House faces east-west. North windows never get direct sunlight. West windows get afternoon/evening sun, south windows get morning and midday sun."
 }

@@ -11,6 +11,11 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from dotenv import load_dotenv
 
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from agent.smart_shades_agent import SmartShadesAgent
 from models.requests import ShadeControlRequest, ShadeStatusResponse
 
@@ -125,6 +130,20 @@ async def get_shade_status(room: str):
         )
     except Exception as e:
         logger.error(f"Error getting shade status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/solar/{room}")
+async def get_solar_info(room: str):
+    """Get solar information and sun exposure for a specific room"""
+    try:
+        if not agent:
+            raise HTTPException(status_code=503, detail="Agent not initialized")
+
+        solar_info = agent._get_window_sun_exposure(room)
+        return {"room": room, "solar_data": solar_info}
+    except Exception as e:
+        logger.error(f"Error getting solar info: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

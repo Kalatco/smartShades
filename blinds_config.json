@@ -1,0 +1,36 @@
+{
+  "rooms": {
+    "master_bedroom": {
+      "blinds": [
+        {
+          "id": "2",
+          "name": "Master Side Window"
+        },
+        {
+          "id": "3",
+          "name": "Master Front Window"
+        },
+        {
+          "id": "4",
+          "name": "Master Ceiling Window"
+        }
+      ]
+    },
+    "guest_bedroom": {
+      "blinds": [
+        {
+          "id": "5",
+          "name": "Guest Side Window"
+        },
+        {
+          "id": "6",
+          "name": "Guest Front Window"
+        }
+      ]
+    }
+  },
+  "makerApiId": "21",
+  "accessToken": "3003c3ef-37bb-4275-965a-8e9730baf815",
+  "hubitatUrl": "http://192.168.0.2",
+  "location": "Seattle, WA"
+}

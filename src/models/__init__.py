@@ -7,7 +7,6 @@ from .requests import (
     BlindConfig,
     RoomConfig,
     HubitatConfig,
-    AgentState,
     ShadeAnalysis,
     ExecutionResult,
 )
@@ -17,7 +16,6 @@ __all__ = [
     "BlindConfig",
     "RoomConfig",
     "HubitatConfig",
-    "AgentState",
     "ShadeAnalysis",
     "ExecutionResult",
 ]

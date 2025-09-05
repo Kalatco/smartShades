@@ -132,16 +132,6 @@ class HubitatConfig(BaseModel):
     )
 
 
-class AgentState(BaseModel):
-    """Internal state model for the LangGraph agent"""
-
-    room: str = Field(default="", description="Current room being controlled")
-    target_position: int = Field(default=50, ge=0, le=100)
-    messages: list = Field(default_factory=list)
-    reasoning: Optional[Dict[str, Any]] = Field(default=None)
-    config: Optional[HubitatConfig] = Field(default=None)
-
-
 class BlindOperation(BaseModel):
     """Individual blind operation with position"""
 

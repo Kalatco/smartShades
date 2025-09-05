@@ -81,8 +81,8 @@ app = FastAPI(
     """,
     version="1.0.0",
     contact={
-        "name": "SmartShadesAgent",
-        "url": "https://github.com/kalatco/SmartShadesAgent",
+        "name": "smartShades",
+        "url": "https://github.com/kalatco/smartShades",
     },
     license_info={
         "name": "MIT",

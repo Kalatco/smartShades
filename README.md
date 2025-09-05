@@ -4,7 +4,7 @@ A LangChain-based intelligent agent for smart shades control and automation usin
 
 ## Overview
 
-This project implements an AI agent using LangChain that can intelligently control Z-Wave smart shades through Hubitat using natural language commands. The agent integrates with Hubitat's Maker API for IoT device control and uses Azure OpenAI for intelligent command interpretation with solar intelligence features.
+This project implements an AI agent using LangChain that can intelligently control Z-Wave smart shades through [Hubitat](https://hubitat.com/) using natural language commands. The agent integrates with Hubitat's Maker API for IoT device control and uses Azure OpenAI for intelligent command interpretation with solar intelligence features.
 
 ## Features
 

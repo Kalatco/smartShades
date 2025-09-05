@@ -207,40 +207,44 @@ class SmartShadesAgent:
 
             system_prompt = f"""Analyze this shade control request for room: {state.room}
 
-Available blinds in THIS room: {[f"{blind.name} ({getattr(blind, 'orientation', 'unknown')} facing)" for blind in room_blinds]}
-CURRENT POSITIONS: {current_status}{solar_context}{house_info}
+              Available blinds in THIS room: {[f"{blind.name} ({getattr(blind, 'orientation', 'unknown')} facing)" for blind in room_blinds]}
+              CURRENT POSITIONS: {current_status}{solar_context}{house_info}
 
-For commands that mention MULTIPLE specific blinds with DIFFERENT positions, use the 'operations' array.
-For commands that set the SAME position for multiple/all blinds, use the legacy single operation format.
+              For commands that mention MULTIPLE specific blinds with DIFFERENT positions, use the 'operations' array.
+              For commands that set the SAME position for multiple/all blinds, use the legacy single operation format.
 
-MULTIPLE OPERATIONS FORMAT (use when different positions needed):
-- "open the side window halfway, and front window fully" → 
-  operations: [
-    {{blind_filter: ["side"], position: 50, reasoning: "side window to halfway"}},
-    {{blind_filter: ["front"], position: 100, reasoning: "front window fully open"}}
-  ]
-  scope: "specific"
+              MULTIPLE OPERATIONS FORMAT (use when different positions needed):
+              - "open the side window halfway, and front window fully" → 
+                operations: [
+                  {{blind_filter: ["side"], position: 50, reasoning: "side window to halfway"}},
+                  {{blind_filter: ["front"], position: 100, reasoning: "front window fully open"}}
+                ]
+                scope: "specific"
 
-SINGLE OPERATION FORMAT (use when same position for all targets):
-- "open all windows" → position: 100, scope: "room", blind_filter: []
-- "close the front window" → position: 0, scope: "specific", blind_filter: ["front"]
+              SINGLE OPERATION FORMAT (use when same position for all targets):
+              - "open all windows" → position: 100, scope: "room", blind_filter: []
+              - "close the front window" → position: 0, scope: "specific", blind_filter: ["front"]
 
-Position guidelines:
-- "open/up/fully"=100, "close/down"=0, "half/halfway"=50
-- "a little more/bit more" = current + 10-15%
-- "much more" = current + 25-30%
+              Position guidelines:
+              - "open/up/fully"=100, "close/down"=0, "half/halfway"=50
+              - "a little more/bit more" = current + 10-15%
+              - "much more" = current + 25-30%
 
-Scope rules:
-- "house": ONLY if explicitly mentions "house", "all rooms", "entire house"
-- "room": Default for "all windows", "all shades" (current room only)  
-- "specific": When naming specific blinds OR multiple different operations
+              Scope rules:
+              - "house": Use when command starts with [HOUSE-WIDE COMMAND] OR explicitly mentions "house", "all rooms", "entire house"
+              - "room": Default for "all windows", "all shades" (current room only)  
+              - "specific": When naming specific blinds OR multiple different operations
 
-Examples:
-- "Open all windows" → position: 100, scope: "room", blind_filter: []
-- "Open the front window" → position: 100, scope: "specific", blind_filter: ["front"]
-- "Open side halfway, front fully" → operations: [{{blind_filter: ["side"], position: 50}}, {{blind_filter: ["front"], position: 100}}], scope: "specific"
+              IMPORTANT: If command starts with [HOUSE-WIDE COMMAND], automatically set scope: "house"
 
-Provide structured response. Use operations array ONLY when different positions are needed for different blinds."""
+              Examples:
+              - "Open all windows" → position: 100, scope: "room", blind_filter: []
+              - "Open the front window" → position: 100, scope: "specific", blind_filter: ["front"]
+              - "[HOUSE-WIDE COMMAND] close all blinds" → position: 0, scope: "house", blind_filter: []
+              - "Open side halfway, front fully" → operations: [{{blind_filter: ["side"], position: 50}}, {{blind_filter: ["front"], position: 100}}], scope: "specific"
+
+              Provide structured response. Use operations array ONLY when different positions are needed for different blinds.
+            """
 
             try:
                 # Use structured output with Pydantic model
@@ -716,6 +720,48 @@ Provide structured response. Use operations array ONLY when different positions 
         else:
             return "low"
 
+    async def _detect_house_wide_command(self, command: str) -> bool:
+        """Detect if a command is meant to be house-wide using LLM analysis"""
+        try:
+            system_prompt = """Analyze this shade/blind control command to determine if it's meant to affect the entire house or just a specific room.
+
+              Return True ONLY if the command explicitly mentions:
+              - "house" or "entire house" or "whole house"
+              - "all rooms" or "every room"
+              - "everywhere" in the context of the entire house
+
+              Return False for:
+              - Commands mentioning specific rooms (even if multiple rooms)
+              - Commands saying "all windows" or "all blinds" (these refer to current room)
+              - General commands without house-wide indicators
+              - Commands with specific blind names or orientations
+
+              Examples:
+              - "close all blinds in the house" → True
+              - "open all windows in every room" → True
+              - "close all blinds" → False (current room only)
+              - "open the living room and bedroom windows" → False (specific rooms)
+              - "close all windows" → False (current room only)
+
+              Respond with only "true" or "false".
+            """
+
+            response = await self.llm.ainvoke(
+                [
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=f"Command: {command}"),
+                ]
+            )
+
+            # Extract boolean from response
+            response_text = response.content.lower().strip()
+            return response_text == "true"
+
+        except Exception as e:
+            logger.error(f"Error detecting house-wide command: {e}")
+            # Default to False (room-specific) on error
+            return False
+
     async def process_request(
         self, command: str, room: str, context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -728,13 +774,17 @@ Provide structured response. Use operations array ONLY when different positions 
                     room,
                 )
 
-            # Handle house-wide commands - use first room as context
-            if "house" in command.lower() or "all rooms" in command.lower():
-                if room not in self.config.rooms:
-                    room = list(self.config.rooms.keys())[0]
+            # Detect if the command is house-wide using LLM prompt
+            is_house_wide = await self._detect_house_wide_command(command)
 
             # Prepare state and run through graph
+            # For house-wide commands, we still use the original room for context
+            # but the analysis will detect the house-wide intent and set scope="house"
             state = AgentState(room=room, messages=[command], config=self.config)
+
+            # Add house-wide hint to the first message if detected
+            if is_house_wide:
+                state.messages = [f"[HOUSE-WIDE COMMAND] {command}"]
             result = await self.graph.ainvoke(state)
 
             # Extract execution details from result

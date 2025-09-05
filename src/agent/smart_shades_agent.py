@@ -134,8 +134,10 @@ class SmartShadesAgent:
             "room_blinds": room_blinds,
             "current_positions": current_positions,
             "window_sun_info": window_sun_info,
-            "house_orientation": getattr(self.config, "house_orientation", ""),
-            "notes": getattr(self.config, "notes", ""),
+            "house_orientation": getattr(
+                self.config.houseInformation, "orientation", ""
+            ),
+            "notes": getattr(self.config.houseInformation, "notes", ""),
         }
 
         try:

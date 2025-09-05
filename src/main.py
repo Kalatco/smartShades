@@ -12,6 +12,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
+from utils.solar_utils import SolarUtils
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -242,7 +243,7 @@ async def get_solar_info(room: str):
         if not agent:
             raise HTTPException(status_code=503, detail="Agent not initialized")
 
-        solar_info = agent._get_window_sun_exposure(room)
+        solar_info = SolarUtils.get_window_sun_exposure(agent.config, room)
         return {"room": room, "solar_data": solar_info}
     except Exception as e:
         logger.error(f"Error getting solar info: {e}")

@@ -4,10 +4,12 @@ Solar calculation utilities for the Smart Shades Agent
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 import pytz
 from astral import LocationInfo
 from astral.sun import azimuth, elevation, sunrise, sunset
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -15,29 +17,66 @@ logger = logging.getLogger(__name__)
 class SolarUtils:
     """Utility class for solar calculations and window sun exposure"""
 
+    # Cache for geocoded coordinates to avoid repeated API calls
+    _coordinate_cache = {}
+
     @staticmethod
     def _get_timezone_and_now(config):
         """Get timezone and current time consistently"""
-        if config.timezone:
-            tz = pytz.timezone(config.timezone)
+        if config.location.timezone:
+            tz = pytz.timezone(config.location.timezone)
             return tz, datetime.now(tz)
         else:
             return timezone.utc, datetime.now(timezone.utc)
 
     @staticmethod
+    def _get_coordinates_from_city(city: str) -> Tuple[float, float]:
+        """Get coordinates from city name using geocoding service"""
+
+        # Check cache first
+        if city in SolarUtils._coordinate_cache:
+            logger.debug(f"Using cached coordinates for {city}")
+            return SolarUtils._coordinate_cache[city]
+
+        try:
+            # Use Nominatim (free OpenStreetMap geocoding service)
+            geolocator = Nominatim(user_agent="smart_shades_agent")
+            location = geolocator.geocode(city, timeout=10)
+
+            if location:
+                coords = (location.latitude, location.longitude)
+                # Cache the result
+                SolarUtils._coordinate_cache[city] = coords
+                logger.info(f"Geocoded '{city}' to coordinates: {coords}")
+                return coords
+            else:
+                logger.warning(
+                    f"Could not geocode city '{city}', solar calculations will be unavailable"
+                )
+                raise ValueError(f"Could not geocode city: {city}")
+
+        except (GeocoderTimedOut, GeocoderUnavailable, Exception) as e:
+            logger.warning(
+                f"Geocoding failed for '{city}': {e}, solar calculations will be unavailable"
+            )
+            raise ValueError(f"Geocoding failed: {e}")
+
+    @staticmethod
     def get_solar_info(config) -> Dict[str, Any]:
         """Get current solar position and sun-related information"""
         try:
-            if not config.latitude or not config.longitude:
-                return {"error": "Location coordinates not configured"}
+            # Get coordinates from city
+            latitude, longitude = SolarUtils._get_coordinates_from_city(
+                config.location.city
+            )
 
             # Create location info
             location = LocationInfo(
                 "Home",
                 "Region",
-                config.timezone or "UTC",
-                config.latitude,
-                config.longitude,
+                config.location.timezone or "UTC",
+                latitude,
+                longitude,
             )
 
             # Get current time in configured timezone
@@ -53,7 +92,7 @@ class SolarUtils:
             sunset_utc = sunset(location.observer, date=today_date)
 
             # Convert to local timezone
-            if config.timezone:
+            if config.location.timezone:
                 sunrise_local = sunrise_utc.replace(tzinfo=pytz.UTC).astimezone(tz)
                 sunset_local = sunset_utc.replace(tzinfo=pytz.UTC).astimezone(tz)
             else:
@@ -85,7 +124,7 @@ class SolarUtils:
                 "sunrise": sunrise_local.strftime("%H:%M %Z"),
                 "sunset": sunset_local.strftime("%H:%M %Z"),
                 "current_time": now.strftime("%H:%M %Z"),
-                "timezone": config.timezone or "UTC",
+                "timezone": config.location.timezone or "UTC",
             }
 
         except Exception as e:

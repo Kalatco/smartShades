@@ -74,11 +74,14 @@ Edit `blinds_config.json` to match your setup:
 ```json
 {
   "makerApiId": "1",
-  "latitude": 47.6062,
-  "longitude": -122.3321,
-  "timezone": "America/Los_Angeles",
-  "house_orientation": "North-facing front door",
-  "notes": "Guest bedroom faces east, master bedroom faces west",
+  "location": {
+    "city": "Seattle, WA",
+    "timezone": "America/Los_Angeles"
+  },
+  "houseInformation": {
+    "orientation": "east-west",
+    "notes": "Guest bedroom faces east, master bedroom faces west"
+  },
   "rooms": {
     "guest_bedroom": {
       "blinds": [
@@ -111,7 +114,7 @@ Edit `blinds_config.json` to match your setup:
 - `id`: Use the Device Network ID from Hubitat
 - `name`: Friendly name for voice commands
 - `orientation`: Cardinal direction for solar intelligence (North, South, East, West)
-- `latitude/longitude`: Your location for sun calculations
+- `city`: Your city for automatic coordinate lookup and sun calculations
 - `timezone`: Your local timezone for accurate solar times
 
 ### 4. Installation and Running
@@ -192,13 +195,13 @@ graph TD
     B --> C[SmartShadesAgent]
     
     C --> D[HouseWideDetectionChain]
-    D --> E[Azure OpenAI GPT-4]
+    D --> E[Azure OpenAI]
     E --> D
     D --> F{House-wide?}
     
     C --> G[ShadeAnalysisChain]
     G --> E
-    G --> H[SolarUtils]
+    G --> H[SolarUtils + Geocoding]
     G --> I[HubitatUtils - Get Positions]
     I --> J[Hubitat Hub]
     

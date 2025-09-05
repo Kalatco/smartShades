@@ -22,6 +22,27 @@ class RoomConfig(BaseModel):
     blinds: List[BlindConfig] = Field(..., description="List of blinds in the room")
 
 
+class LocationConfig(BaseModel):
+    """Location configuration"""
+
+    city: str = Field(..., description="City for solar calculations")
+    timezone: Optional[str] = Field(
+        default="UTC",
+        description="Timezone for solar calculations (e.g., 'America/Los_Angeles')",
+    )
+
+
+class HouseInformationConfig(BaseModel):
+    """House-specific information"""
+
+    orientation: Optional[str] = Field(
+        default=None, description="House orientation (e.g., 'east-west', 'north-south')"
+    )
+    notes: Optional[str] = Field(
+        default=None, description="Additional notes about the house layout"
+    )
+
+
 class HubitatConfig(BaseModel):
     """Hubitat configuration"""
 
@@ -29,20 +50,7 @@ class HubitatConfig(BaseModel):
     makerApiId: Optional[str] = Field(default=None, description="Maker API ID")
     accessToken: Optional[str] = Field(default=None, description="Access token")
     hubitatUrl: Optional[str] = Field(default=None, description="Hubitat hub URL")
-    location: str = Field(..., description="Location description")
-    latitude: Optional[float] = Field(
-        default=None, description="Latitude for solar calculations"
-    )
-    longitude: Optional[float] = Field(
-        default=None, description="Longitude for solar calculations"
-    )
-    timezone: Optional[str] = Field(
-        default="UTC",
-        description="Timezone for solar calculations (e.g., 'America/Los_Angeles')",
-    )
-    house_orientation: Optional[str] = Field(
-        default=None, description="House orientation (e.g., 'east-west', 'north-south')"
-    )
-    notes: Optional[str] = Field(
-        default=None, description="Additional notes about the house layout"
+    location: LocationConfig = Field(..., description="Location information")
+    houseInformation: HouseInformationConfig = Field(
+        ..., description="House-specific information"
     )

@@ -35,10 +35,12 @@
     }
   },
   "makerApiId": "21",
-  "location": "Seattle, WA",
-  "latitude": 47.6062,
-  "longitude": -122.3321,
-  "timezone": "America/Los_Angeles",
-  "house_orientation": "east-west",
-  "notes": "House faces east-west. North windows never get direct sunlight. West windows get afternoon/evening sun, south windows get morning and midday sun."
+  "location": {
+    "city": "Seattle, WA",
+    "timezone": "America/Los_Angeles"
+  },
+  "houseInformation": {
+    "orientation": "east-west",
+    "notes": "House faces east-west. North windows never get direct sunlight. West windows get afternoon/evening sun, south windows get morning and midday sun."
+  }
 }

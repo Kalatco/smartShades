@@ -1,10 +1,10 @@
 # Smart Shades Agent
 
-A LangGraph-based intelligent agent for smart shades control and automation using Azure OpenAI and Hubitat Z-Wave integration.
+A LangChain-based intelligent agent for smart shades control and automation using Azure OpenAI and Hubitat Z-Wave integration.
 
 ## Overview
 
-This project implements an AI agent using LangGraph that can intelligently control Z-Wave smart shades through Hubitat using natural language commands. The agent integrates with Hubitat's Maker API for IoT device control and uses Azure OpenAI for intelligent command interpretation with solar intelligence features.
+This project implements an AI agent using LangChain that can intelligently control Z-Wave smart shades through Hubitat using natural language commands. The agent integrates with Hubitat's Maker API for IoT device control and uses Azure OpenAI for intelligent command interpretation with solar intelligence features.
 
 ## Features
 
@@ -171,8 +171,10 @@ docker run -p 8000:8000 --env-file .env smart-shades-agent
 
 ```
 ├── src/
-│   ├── agent/          # LangGraph agent implementation
+│   ├── agent/          # LangChain agent implementation
+│   ├── chains/         # LangChain chains for command processing
 │   ├── models/         # Data models and Pydantic schemas
+│   ├── utils/          # Utility modules (solar, hubitat, blind logic)
 │   └── main.py         # FastAPI application entry point
 ├── blinds_config.json  # Hubitat device configuration
 ├── .env               # Environment variables (create from template)
@@ -181,6 +183,71 @@ docker run -p 8000:8000 --env-file .env smart-shades-agent
 ├── requirements.txt   # Python dependencies
 └── README.md          # This file
 ```
+
+## Architecture Overview
+
+```mermaid
+graph TD
+    A[User Command] --> B[FastAPI Endpoint]
+    B --> C[SmartShadesAgent]
+    
+    C --> D[HouseWideDetectionChain]
+    D --> E[Azure OpenAI GPT-4]
+    E --> D
+    D --> F{House-wide?}
+    
+    C --> G[ShadeAnalysisChain]
+    G --> E
+    G --> H[SolarUtils]
+    G --> I[HubitatUtils - Get Positions]
+    I --> J[Hubitat Hub]
+    
+    F --> K[BlindUtils - Target Selection]
+    G --> K
+    K --> L[HubitatUtils - Control Blinds]
+    L --> J
+    
+    J --> M[Z-Wave Smart Shades]
+    
+    C --> N[ExecutionResult]
+    N --> B
+    B --> O[JSON Response]
+    
+    subgraph "LangChain Pipeline"
+        D
+        G
+    end
+    
+    subgraph "Utility Modules"
+        H
+        I
+        L
+        K
+    end
+    
+    subgraph "External Systems"
+        E
+        J
+        M
+    end
+    
+    style C fill:#e1f5fe
+    style D fill:#f3e5f5
+    style G fill:#f3e5f5
+    style H fill:#e8f5e8
+    style I fill:#e8f5e8
+    style K fill:#e8f5e8
+    style L fill:#e8f5e8
+```
+
+## How It Works
+
+1. **Command Reception**: User sends natural language command via REST API
+2. **House-wide Detection**: LangChain chain determines if command affects entire house or specific room
+3. **Command Analysis**: LangChain chain analyzes command with solar data and current blind positions
+4. **Blind Targeting**: Utility modules determine which specific blinds to control
+5. **Execution**: Commands sent to Hubitat hub which controls Z-Wave devices
+6. **Response**: Structured response returned to user
 
 ## Advanced Features
 

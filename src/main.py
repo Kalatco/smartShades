@@ -19,7 +19,9 @@ from agent.smart_shades_agent import SmartShadesAgent
 from models.requests import (
     ShadeStatusResponse,
     RoomsResponse,
+    ShadeControlCommand,
 )
+
 
 # Load environment variables
 load_dotenv()
@@ -132,29 +134,23 @@ async def get_available_rooms():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get(
+@app.post(
     "/rooms/{room}/control", response_model=ShadeStatusResponse, tags=["Shade Control"]
 )
-async def control_shades_get(
+async def control_shades_post(
     room: str,
-    command: str = Query(..., description="Natural language command for shade control"),
+    request: ShadeControlCommand,
 ):
     """
-    Control shades via GET request using natural language commands
+    Control shades via POST request using natural language commands
 
-    This endpoint is designed for Apple Shortcuts and other simple HTTP clients.
-    Uses URL query parameters instead of request body.
+    This endpoint accepts JSON payloads with shade control commands.
 
-    **URL Format:**
-    ```
-    GET /rooms/{room}/control?command={command}
-    ```
-
-    **Example Usage:**
-    ```
-    GET /rooms/guest_bedroom/control?command=Open%20the%20blinds%20halfway
-    GET /rooms/living_room/control?command=Close%20all%20blinds
-    GET /rooms/master_bedroom/control?command=Block%20the%20sun
+    **Request Body:**
+    ```json
+    {
+        "command": "Open the blinds halfway"
+    }
     ```
 
     **Command Examples:**
@@ -167,7 +163,7 @@ async def control_shades_get(
 
     **Parameters:**
     * **room**: The room name (e.g., "guest_bedroom", "living_room", "master_bedroom")
-    * **command**: Natural language command describing the desired action (URL-encoded query parameter)
+    * **request**: JSON body containing the command
 
     **Response:** Returns a ShadeStatusResponse with operation results and affected blinds.
     """
@@ -175,7 +171,7 @@ async def control_shades_get(
         if not agent:
             raise HTTPException(status_code=503, detail="Agent not initialized")
 
-        result = await agent.process_request(command, room, None)
+        result = await agent.process_request(request.command, room, None)
 
         # Create a short, voice-friendly message for Apple Shortcuts
         affected_blinds = result.get("affected_blinds", [])

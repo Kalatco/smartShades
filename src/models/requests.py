@@ -7,6 +7,12 @@ from typing import Optional, Dict, Any, List, Literal
 from pydantic import BaseModel, Field
 
 
+class ShadeControlCommand(BaseModel):
+    """Request model for simple shade control commands"""
+
+    command: str = Field(..., description="Natural language command for shade control")
+
+
 class ShadeStatusResponse(BaseModel):
     """Response model for shade status and control operations"""
 

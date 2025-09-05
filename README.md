@@ -8,18 +8,13 @@ This project implements an AI agent using LangChain that can intelligently contr
 
 ## Features
 
-- **Natural Language Control**: "open the front shade", "close all blinds", "block the sun"
+- **Natural Language Control**: "open the front shade", "close all blinds", "block the sun", "im starting a movie"
 - **Multi-Blind Operations**: "open the side window halfway, and front window fully"
 - **Room-specific and house-wide control**
 - **Solar Intelligence**: Automatic sun exposure detection and glare management
 - **Specific blind targeting by name or keyword**
-- **RESTful API** for external integrations (Apple Shortcuts, Home Assistant, etc.)
-- **Hubitat Z-Wave Integration** via Maker API
-- **Voice-friendly responses** for Apple Shortcuts and Siri
-- **Intelligent Context Awareness**: Considers current blind positions and solar conditions
+- **RESTful API** for external integrations (Apple Shortcuts & Siri, Home Assistant, etc.)
 - **Structured Output Parsing**: Pydantic models ensure reliable command interpretation
-- **Geocoding Integration**: Automatic coordinate lookup from city names
-- **Caching & Performance**: Smart caching for geocoding and optimized API calls
 
 ## Architecture Overview
 
@@ -85,6 +80,27 @@ graph TD
 4. **Blind Targeting**: Utility modules determine which specific blinds to control
 5. **Execution**: Commands sent to Hubitat hub which controls Z-Wave devices
 6. **Response**: Structured response returned to user
+
+## More Voice Commands Examples
+
+- **Basic Control**: "Open the blinds", "Close all shades", "Set to 75 percent"
+- **Multi-Blind**: "Open the side window halfway, and front window fully"
+- **Solar-Aware**: "Block the sun", "Reduce glare", "Open but avoid direct sunlight"
+- **Room-Specific**: "Close all blinds in the bedroom", "Open living room shades"
+- **Complex Multi-Commands**: "Close the north window completely and set the east window to 30%"
+- **Contextual**: "It's too bright in here", "Prepare for movie time"
+
+## API Endpoints
+
+The Smart Shades Agent provides a comprehensive REST API:
+
+| Endpoint | Method | Description |
+|----------|---------|-------------|
+| `/rooms/{room}/control` | POST | Control blinds with natural language |
+| `/rooms/{room}/status` | GET | Get current blind positions |
+| `/rooms/{room}/solar` | GET | Get solar exposure analysis |
+| `/rooms` | GET | List all available rooms |
+| `/docs` | GET | Swagger documentation |
 
 ## Hardware Requirements
 
@@ -202,27 +218,6 @@ Edit `blinds_config.json` to match your setup:
    - Swagger UI: http://localhost:8000/docs
    - API Base: http://localhost:8000
 
-## Voice Commands Examples
-
-- **Basic Control**: "Open the blinds", "Close all shades", "Set to 75 percent"
-- **Multi-Blind**: "Open the side window halfway, and front window fully"
-- **Solar-Aware**: "Block the sun", "Reduce glare", "Open but avoid direct sunlight"
-- **Room-Specific**: "Close all blinds in the bedroom", "Open living room shades"
-- **Complex Multi-Commands**: "Close the north window completely and set the east window to 30%"
-- **Contextual**: "It's too bright in here", "Prepare for movie time"
-
-## API Endpoints
-
-The Smart Shades Agent provides a comprehensive REST API:
-
-| Endpoint | Method | Description |
-|----------|---------|-------------|
-| `/rooms/{room}/control` | POST | Control blinds with natural language |
-| `/rooms/{room}/status` | GET | Get current blind positions |
-| `/rooms/{room}/solar` | GET | Get solar exposure analysis |
-| `/rooms` | GET | List all available rooms |
-| `/docs` | GET | Interactive API documentation |
-
 ## Integration Examples
 
 ### Apple Shortcuts
@@ -269,19 +264,6 @@ docker run -p 8000:8000 --env-file .env smart-shades-agent
 ├── requirements.txt   # Python dependencies
 └── README.md          # This file
 ```
-
-## Advanced Features
-
-### Solar Intelligence
-- Automatic sun position tracking
-- Window-specific sun exposure analysis
-- Commands like "block the sun" automatically target sunny windows
-- Glare reduction based on sun intensity
-
-### Multi-Operation Commands
-- Handle complex requests: "open side window halfway, front window fully"
-- Intelligent parsing of different positions for different blinds
-- Scope detection (room vs house-wide commands)
 
 ## License
 

@@ -7,7 +7,7 @@ import logging
 import os
 import json
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 import pytz
 from dotenv import load_dotenv
@@ -19,22 +19,16 @@ import httpx
 from astral import LocationInfo
 from astral.sun import sun, azimuth, elevation
 
-try:
-    from ..models.requests import (
-        AgentState,
-        HubitatConfig,
-        ShadeAnalysis,
-        ExecutionResult,
-        BlindOperation,
-    )
-except ImportError:
-    from models.requests import (
-        AgentState,
-        HubitatConfig,
-        ShadeAnalysis,
-        ExecutionResult,
-        BlindOperation,
-    )
+# Use individual functions instead of combined sun() function
+from astral.sun import sunrise, sunset
+
+from models.requests import (
+    AgentState,
+    HubitatConfig,
+    ShadeAnalysis,
+    ExecutionResult,
+    BlindOperation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -560,11 +554,56 @@ Provide structured response. Use operations array ONLY when different positions 
             )  # 0° = North, 90° = East, 180° = South, 270° = West
             sun_elevation_angle = elevation(location.observer, now)  # Above horizon
 
-            # Get sun times for today
-            sun_times = sun(location.observer, date=now.date())
+            # Get sun times for today - use LOCAL date, not UTC date
+            if self.config.timezone:
+                pacific_tz = pytz.timezone(self.config.timezone)
+                local_now = datetime.now(pacific_tz)
+                today_date = local_now.date()  # Use local date
+            else:
+                utc_now = datetime.now(pytz.UTC)
+                today_date = utc_now.date()
 
-            # Determine if sun is up
-            is_sun_up = sun_times["sunrise"] <= now <= sun_times["sunset"]
+            logger.info(f"Using local date for calculations: {today_date}")
+
+            try:
+                # Try calculating for today with explicit UTC date
+                sunrise_utc = sunrise(location.observer, date=today_date)
+                sunset_utc = sunset(location.observer, date=today_date)
+
+                # Check if sunset is in the morning (wrong!) - if so, try tomorrow's date
+                if sunset_utc.time().hour < 12:  # If sunset is in AM, it's wrong
+                    logger.warning(
+                        f"Sunset appears to be in AM ({sunset_utc.time()}), trying next day..."
+                    )
+                    tomorrow_date = today_date + timedelta(days=1)
+                    sunset_utc = sunset(location.observer, date=tomorrow_date)
+                    logger.info(f"  Corrected sunset UTC: {sunset_utc}")
+
+                sun_times = {"sunrise": sunrise_utc, "sunset": sunset_utc}
+
+            except Exception as e:
+                logger.error(f"Error with individual sun calculations: {e}")
+                # Fallback to original method
+                sun_times = sun(location.observer, date=today_date)
+
+            # Convert sunrise/sunset to the same timezone as 'now'
+            if self.config.timezone:
+                pacific_tz = pytz.timezone(self.config.timezone)
+                sunrise_local = (
+                    sun_times["sunrise"].replace(tzinfo=pytz.UTC).astimezone(pacific_tz)
+                )
+                sunset_local = (
+                    sun_times["sunset"].replace(tzinfo=pytz.UTC).astimezone(pacific_tz)
+                )
+
+                logger.info(f"Converted sunrise: {sunrise_local}")
+                logger.info(f"Converted sunset: {sunset_local}")
+            else:
+                sunrise_local = sun_times["sunrise"]
+                sunset_local = sun_times["sunset"]
+
+            # Determine if sun is up (comparing times in the same timezone)
+            is_sun_up = sunrise_local <= now <= sunset_local
 
             # Convert azimuth to cardinal direction
             def azimuth_to_direction(azimuth_deg):
@@ -588,10 +627,11 @@ Provide structured response. Use operations array ONLY when different positions 
                 "elevation": sun_elevation_angle,
                 "direction": sun_direction,
                 "is_up": is_sun_up,
-                "sunrise": sun_times["sunrise"].strftime("%H:%M %Z"),
-                "sunset": sun_times["sunset"].strftime("%H:%M %Z"),
+                "sunrise": sunrise_local.strftime("%H:%M %Z"),
+                "sunset": sunset_local.strftime("%H:%M %Z"),
                 "current_time": now.strftime("%H:%M %Z"),
                 "timezone": self.config.timezone or "UTC",
+                "debug": f"Now: {now}, Sunrise: {sunrise_local}, Sunset: {sunset_local}, Sun up: {is_sun_up}",
             }
 
         except Exception as e:

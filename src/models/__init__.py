@@ -3,7 +3,6 @@ Package initialization for models
 """
 
 from .requests import (
-    ShadeControlRequest,
     ShadeStatusResponse,
     BlindConfig,
     RoomConfig,
@@ -14,7 +13,6 @@ from .requests import (
 )
 
 __all__ = [
-    "ShadeControlRequest",
     "ShadeStatusResponse",
     "BlindConfig",
     "RoomConfig",

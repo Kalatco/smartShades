@@ -5,19 +5,21 @@ Smart Shades Agent - Main Application Entry Point
 import asyncio
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
-
-import sys
-import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from agent.smart_shades_agent import SmartShadesAgent
-from models.requests import ShadeControlRequest, ShadeStatusResponse
+from models.requests import (
+    ShadeStatusResponse,
+    RoomsResponse,
+)
 
 # Load environment variables
 load_dotenv()
@@ -55,56 +57,143 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="Smart Shades Agent",
-    description="LangGraph-based intelligent agent for smart shades control",
+    title="Smart Shades Agent API",
+    description="""
+    ## Smart Shades Control System
+    
+    LangGraph-based intelligent agent for smart shades control with natural language processing.
+    
+    ### Features:
+    * **Natural Language Control**: Control shades using voice commands or text
+    * **Multi-Room Support**: Manage shades across different rooms
+    * **Solar Intelligence**: Automatic sun exposure detection and glare management
+    * **Multi-Blind Operations**: Control multiple blinds with different positions
+    * **Real-time Status**: Get current blind positions and room information
+    
+    ### Usage Examples:
+    * "Open the blinds halfway"
+    * "Close all blinds in the living room"
+    * "Block the sun in the bedroom"
+    * "Open the side window halfway, and front window fully"
+    """,
     version="1.0.0",
+    contact={
+        "name": "Smart Shades Agent",
+        "url": "https://github.com/your-repo/smart-shades",
+    },
+    license_info={
+        "name": "MIT",
+    },
     lifespan=lifespan,
+    docs_url="/docs",  # Swagger UI
+    redoc_url="/redoc",  # ReDoc documentation
 )
 
 
-@app.get("/health")
+@app.get("/", include_in_schema=False)
+async def root():
+    """Redirect to API documentation"""
+    return RedirectResponse(url="/docs")
+
+
+@app.get("/health", tags=["System"])
 async def health_check():
-    """Health check endpoint"""
+    """
+    Health check endpoint
+
+    Returns the current status of the Smart Shades Agent system.
+    """
     return {"status": "healthy", "agent": "running"}
 
 
-@app.post("/control", response_model=ShadeStatusResponse)
-async def control_shades(request: ShadeControlRequest):
-    """Control shades based on natural language input"""
+@app.get("/rooms", response_model=RoomsResponse, tags=["Room Management"])
+async def get_available_rooms():
+    """
+    Get list of available rooms and their blind configurations
+
+    Returns all configured rooms with their associated blinds and metadata.
+    """
     try:
-        if not agent:
+        if not agent or not agent.config:
             raise HTTPException(status_code=503, detail="Agent not initialized")
 
-        result = await agent.process_request(
-            request.command, request.room, request.context
-        )
-        return ShadeStatusResponse(
-            success=True,
-            position=result.get("position", 50),
-            message=result.get("message", "Command processed successfully"),
-            room=result.get("room", request.room),
-            affected_blinds=result.get("affected_blinds", []),
-            timestamp=result.get("timestamp"),
-        )
+        rooms = {}
+        for room_name, room_config in agent.config.rooms.items():
+            rooms[room_name] = {
+                "blind_count": len(room_config.blinds),
+                "blinds": [
+                    {"id": blind.id, "name": blind.name} for blind in room_config.blinds
+                ],
+            }
+
+        return {"rooms": rooms}
     except Exception as e:
-        logger.error(f"Error processing shade control request: {e}")
+        logger.error(f"Error getting rooms: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/control", response_model=ShadeStatusResponse)
-async def control_shades_get(command: str, room: str):
-    """Control shades via GET request for Apple Shortcuts - URL parameters: command and room"""
+@app.get(
+    "/rooms/{room}/control", response_model=ShadeStatusResponse, tags=["Shade Control"]
+)
+async def control_shades_get(
+    room: str,
+    command: str = Query(..., description="Natural language command for shade control"),
+):
+    """
+    Control shades via GET request using natural language commands
+
+    This endpoint is designed for Apple Shortcuts and other simple HTTP clients.
+    Uses URL query parameters instead of request body.
+
+    **URL Format:**
+    ```
+    GET /rooms/{room}/control?command={command}
+    ```
+
+    **Example Usage:**
+    ```
+    GET /rooms/guest_bedroom/control?command=Open%20the%20blinds%20halfway
+    GET /rooms/living_room/control?command=Close%20all%20blinds
+    GET /rooms/master_bedroom/control?command=Block%20the%20sun
+    ```
+
+    **Command Examples:**
+    * "Open the blinds halfway"
+    * "Close all blinds"
+    * "Block the sun"
+    * "Open the side window halfway, and front window fully"
+    * "Set blinds to 75 percent"
+    * "Reduce glare"
+
+    **Parameters:**
+    * **room**: The room name (e.g., "guest_bedroom", "living_room", "master_bedroom")
+    * **command**: Natural language command describing the desired action (URL-encoded query parameter)
+
+    **Response:** Returns a ShadeStatusResponse with operation results and affected blinds.
+    """
     try:
         if not agent:
             raise HTTPException(status_code=503, detail="Agent not initialized")
 
         result = await agent.process_request(command, room, None)
+
+        # Create a short, voice-friendly message for Apple Shortcuts
+        affected_blinds = result.get("affected_blinds", [])
+        position = result.get("position", 50)
+
+        if len(affected_blinds) == 1:
+            voice_message = f"{affected_blinds[0]} set to {position}%"
+        elif len(affected_blinds) > 1:
+            voice_message = f"{len(affected_blinds)} blinds adjusted"
+        else:
+            voice_message = f"Blinds set to {position}%"
+
         return ShadeStatusResponse(
             success=True,
-            position=result.get("position", 50),
-            message=result.get("message", "Command processed successfully"),
+            position=position,
+            message=voice_message,
             room=result.get("room", room),
-            affected_blinds=result.get("affected_blinds", []),
+            affected_blinds=affected_blinds,
             timestamp=result.get("timestamp"),
         )
     except Exception as e:
@@ -112,9 +201,15 @@ async def control_shades_get(command: str, room: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/status/{room}", response_model=ShadeStatusResponse)
+@app.get(
+    "/rooms/{room}/status", response_model=ShadeStatusResponse, tags=["Shade Status"]
+)
 async def get_shade_status(room: str):
-    """Get current shade status for a specific room"""
+    """
+    Get current shade status for a specific room
+
+    Returns the current position and status of all blinds in the specified room.
+    """
     try:
         if not agent:
             raise HTTPException(status_code=503, detail="Agent not initialized")
@@ -133,9 +228,20 @@ async def get_shade_status(room: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/solar/{room}")
+@app.get("/rooms/{room}/solar", tags=["Solar Intelligence"])
 async def get_solar_info(room: str):
-    """Get solar information and sun exposure for a specific room"""
+    """
+    Get solar information and sun exposure analysis for a specific room
+
+    Returns detailed solar information including:
+    * Current sun position (azimuth, elevation)
+    * Sunrise and sunset times
+    * Per-window sun exposure analysis
+    * Recommendations for glare management
+
+    This endpoint is used by the intelligent shade control system to automatically
+    manage blinds based on sun position and potential glare.
+    """
     try:
         if not agent:
             raise HTTPException(status_code=503, detail="Agent not initialized")
@@ -144,28 +250,6 @@ async def get_solar_info(room: str):
         return {"room": room, "solar_data": solar_info}
     except Exception as e:
         logger.error(f"Error getting solar info: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/rooms")
-async def get_available_rooms():
-    """Get list of available rooms"""
-    try:
-        if not agent or not agent.config:
-            raise HTTPException(status_code=503, detail="Agent not initialized")
-
-        rooms = {}
-        for room_name, room_config in agent.config.rooms.items():
-            rooms[room_name] = {
-                "blind_count": len(room_config.blinds),
-                "blinds": [
-                    {"id": blind.id, "name": blind.name} for blind in room_config.blinds
-                ],
-            }
-
-        return {"rooms": rooms}
-    except Exception as e:
-        logger.error(f"Error getting rooms: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

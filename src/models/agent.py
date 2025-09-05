@@ -6,6 +6,14 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
+class HouseWideDetection(BaseModel):
+    """Result of house-wide command detection"""
+
+    is_house_wide: bool = Field(
+        ..., description="Whether the command is meant for the entire house"
+    )
+
+
 class BlindOperation(BaseModel):
     """Individual blind operation with position"""
 

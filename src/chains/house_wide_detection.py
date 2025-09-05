@@ -5,7 +5,8 @@ House-wide command detection chain
 from typing import Dict, Any
 from langchain_openai import AzureChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.output_parsers import PydanticOutputParser
+from models.agent import HouseWideDetection
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,9 @@ class HouseWideDetectionChain:
 
     def __init__(self, llm: AzureChatOpenAI):
         self.llm = llm
+
+        # Create the parser
+        self.parser = PydanticOutputParser(pydantic_object=HouseWideDetection)
 
         # Define the prompt template
         system_prompt = """Analyze this shade/blind control command to determine if it's meant to affect the entire house or just a specific room.
@@ -38,25 +42,36 @@ class HouseWideDetectionChain:
         - "open the living room and bedroom windows" → False (specific rooms)
         - "close all windows" → False (current room only)
 
-        Respond with only "true" or "false"."""
+        {format_instructions}"""
 
         self.prompt = ChatPromptTemplate.from_messages(
             [("system", system_prompt), ("human", "Command: {command}")]
         )
 
         # Create the chain
-        self.chain = self.prompt | self.llm | StrOutputParser()
+        self.chain = self.prompt | self.llm | self.parser
 
     async def ainvoke(self, input_data: Dict[str, Any]) -> bool:
         """LangChain-style ainvoke method for detecting house-wide commands"""
         command = input_data.get("command", "")
 
         try:
-            response = await self.chain.ainvoke({"command": command})
+            # Include format instructions in the prompt
+            prompt_input = {
+                "command": command,
+                "format_instructions": self.parser.get_format_instructions(),
+            }
 
-            # Extract boolean from response
-            response_text = response.lower().strip()
-            return response_text == "true"
+            response = await self.chain.ainvoke(prompt_input)
+
+            # Log the detection result
+            if response.is_house_wide:
+                logger.info(f"Command detected as HOUSE-WIDE: '{command}'")
+            else:
+                logger.info(f"Command detected as ROOM-SPECIFIC: '{command}'")
+
+            # Return the boolean value from the Pydantic model
+            return response.is_house_wide
 
         except Exception as e:
             logger.error(f"Error detecting house-wide command: {e}")

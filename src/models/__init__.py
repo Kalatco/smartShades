@@ -16,6 +16,7 @@ from .api import (
 
 # Agent models (for LangChain/internal processing)
 from .agent import (
+    HouseWideDetection,
     BlindOperation,
     ShadeAnalysis,
     ExecutionResult,
@@ -39,6 +40,7 @@ __all__ = [
     "SolarInfo",
     "SolarResponse",
     # Agent models
+    "HouseWideDetection",
     "BlindOperation",
     "ShadeAnalysis",
     "ExecutionResult",

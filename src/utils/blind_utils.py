@@ -4,7 +4,6 @@ Blind filtering and targeting utilities for the Smart Shades Agent
 
 import logging
 from typing import List, Tuple
-from models.requests import ShadeAnalysis
 
 logger = logging.getLogger(__name__)
 
@@ -26,19 +25,19 @@ class BlindUtils:
         return filtered
 
     @staticmethod
-    def get_target_blinds(
-        config, analysis: ShadeAnalysis, room: str
+    def get_target_blinds_for_operation(
+        config, scope: str, blind_filter: List[str], room: str
     ) -> Tuple[List, List[str]]:
-        """Get target blinds based on scope and filters"""
+        """Get target blinds based on scope and filters for a specific operation"""
         target_blinds = []
         affected_rooms = []
 
-        if analysis.scope == "house":
+        if scope == "house":
             # All rooms
             for room_name, room_config in config.rooms.items():
-                if analysis.blind_filter:
+                if blind_filter:
                     filtered_blinds = BlindUtils.filter_blinds(
-                        room_config.blinds, analysis.blind_filter
+                        room_config.blinds, blind_filter
                     )
                     if filtered_blinds:
                         target_blinds.extend(filtered_blinds)
@@ -49,10 +48,8 @@ class BlindUtils:
         else:
             # Current room only (both "room" and "specific" scope)
             room_blinds = config.rooms[room].blinds
-            if analysis.blind_filter:
-                filtered_blinds = BlindUtils.filter_blinds(
-                    room_blinds, analysis.blind_filter
-                )
+            if blind_filter:
+                filtered_blinds = BlindUtils.filter_blinds(room_blinds, blind_filter)
                 if filtered_blinds:
                     target_blinds = filtered_blinds
                     affected_rooms = [room]

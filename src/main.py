@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from agent.smart_shades_agent import SmartShadesAgent
-from models.requests import (
+from models.api import (
     ShadeStatusResponse,
     RoomsResponse,
     ShadeControlCommand,
@@ -80,8 +80,8 @@ app = FastAPI(
     """,
     version="1.0.0",
     contact={
-        "name": "Smart Shades Agent",
-        "url": "https://github.com/your-repo/smart-shades",
+        "name": "SmartShadesAgent",
+        "url": "https://github.com/kalatco/SmartShadesAgent",
     },
     license_info={
         "name": "MIT",

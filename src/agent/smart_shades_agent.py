@@ -11,8 +11,8 @@ from dotenv import load_dotenv
 
 from langchain_openai import AzureChatOpenAI
 
-from models.requests import (
-    HubitatConfig,
+from models.config import HubitatConfig
+from models.agent import (
     ShadeAnalysis,
     ExecutionResult,
     BlindOperation,
@@ -52,7 +52,7 @@ class SmartShadesAgent:
         if hubitat_api_url:
             self.config.hubitatUrl = hubitat_api_url
         if not self.config.makerApiId:
-            self.config.makerApiId = "21"  # Default from your setup
+            self.config.makerApiId = "1"  # Default setup
 
         # Initialize LLM
         api_key = os.getenv("AZURE_OPENAI_API_KEY")
@@ -107,14 +107,16 @@ class SmartShadesAgent:
 
         # Get current positions of blinds in this room
         try:
-            current_positions = await self._get_room_current_positions(room)
+            current_positions = await HubitatUtils.get_room_current_positions(
+                self.config, room
+            )
         except Exception as e:
             logger.warning(f"Could not get current positions: {e}")
             current_positions = {blind.name: 50 for blind in room_blinds}
 
         # Get solar information and window sun exposure
         try:
-            window_sun_info = self._get_window_sun_exposure(room)
+            window_sun_info = SolarUtils.get_window_sun_exposure(self.config, room)
         except Exception as e:
             logger.warning(f"Could not get solar info: {e}")
             window_sun_info = {"error": "Solar info unavailable"}
@@ -166,27 +168,23 @@ class SmartShadesAgent:
         try:
             all_executed_blinds = []
             all_affected_rooms = []
-            executed_position = analysis.position  # Default position
+            executed_position = None
 
-            # Handle multiple operations if present
+            # Process operations (new format only)
             if analysis.operations:
                 # Multi-operation format: execute each operation separately
                 for operation in analysis.operations:
-                    # Create temporary analysis for this operation
-                    temp_analysis = ShadeAnalysis(
-                        position=operation.position,
-                        scope=analysis.scope,
-                        blind_filter=operation.blind_filter,
-                        reasoning=operation.reasoning,
-                    )
-
-                    target_blinds, affected_rooms = self._get_target_blinds(
-                        temp_analysis, room
+                    target_blinds, affected_rooms = (
+                        BlindUtils.get_target_blinds_for_operation(
+                            self.config, analysis.scope, operation.blind_filter, room
+                        )
                     )
 
                     if target_blinds:
                         # Execute this operation
-                        await self._control_blinds(target_blinds, operation.position)
+                        await HubitatUtils.control_blinds(
+                            self.config, target_blinds, operation.position
+                        )
                         all_executed_blinds.extend(
                             [blind.name for blind in target_blinds]
                         )
@@ -195,14 +193,16 @@ class SmartShadesAgent:
                         if executed_position is None:
                             executed_position = operation.position
             else:
-                # Single operation format
-                target_blinds, affected_rooms = self._get_target_blinds(analysis, room)
-
-                if target_blinds:
-                    await self._control_blinds(target_blinds, analysis.position)
-                    all_executed_blinds = [blind.name for blind in target_blinds]
-                    all_affected_rooms = affected_rooms
-                    executed_position = analysis.position
+                # No operations - this shouldn't happen with new format
+                logger.warning("ShadeAnalysis received with no operations")
+                return ExecutionResult(
+                    executed_blinds=[],
+                    affected_rooms=[],
+                    total_blinds=0,
+                    position=0,
+                    scope=analysis.scope,
+                    reasoning="No operations to execute",
+                )
 
             if not all_executed_blinds:
                 return ExecutionResult(
@@ -238,38 +238,10 @@ class SmartShadesAgent:
                 executed_blinds=[],
                 affected_rooms=[],
                 total_blinds=0,
-                position=analysis.position or 0,  # Fallback to 0 if None
+                position=0,  # Default to 0 on error
                 scope="error",
                 reasoning=f"Error controlling blinds: {e}",
             )
-
-    def _get_target_blinds(self, analysis: ShadeAnalysis, room: str):
-        """Get target blinds based on scope and filters"""
-        return BlindUtils.get_target_blinds(self.config, analysis, room)
-
-    def _filter_blinds(self, blinds, filter_keywords):
-        """Filter blinds based on keywords matching blind names"""
-        return BlindUtils.filter_blinds(blinds, filter_keywords)
-
-    async def _control_blinds(self, blinds, position: int):
-        """Send HTTP requests to control individual blinds"""
-        await HubitatUtils.control_blinds(self.config, blinds, position)
-
-    async def _get_blind_current_position(self, blind_id: str) -> int:
-        """Get current position of a specific blind from Hubitat"""
-        return await HubitatUtils.get_blind_current_position(self.config, blind_id)
-
-    async def _get_room_current_positions(self, room: str) -> Dict[str, int]:
-        """Get current positions of all blinds in a room"""
-        return await HubitatUtils.get_room_current_positions(self.config, room)
-
-    def _get_solar_info(self) -> Dict[str, Any]:
-        """Get current solar position and sun-related information"""
-        return SolarUtils.get_solar_info(self.config)
-
-    def _get_window_sun_exposure(self, room: str) -> Dict[str, Dict[str, Any]]:
-        """Determine which windows are currently exposed to direct sunlight"""
-        return SolarUtils.get_window_sun_exposure(self.config, room)
 
     async def process_request(
         self, command: str, room: str, context: Optional[Dict[str, Any]] = None
@@ -342,7 +314,9 @@ class SmartShadesAgent:
 
         try:
             # Get actual current positions from Hubitat
-            current_positions = await self._get_room_current_positions(room)
+            current_positions = await HubitatUtils.get_room_current_positions(
+                self.config, room
+            )
             blind_names = list(current_positions.keys())
 
             # Calculate average position for the room

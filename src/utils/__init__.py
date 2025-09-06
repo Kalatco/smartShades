@@ -2,7 +2,7 @@
 Utility modules for the Smart Shades Agent
 """
 
-from .solar_utils import SolarUtils
+from .solar import SolarUtils
 from .hubitat_utils import HubitatUtils
 from .blind_utils import BlindUtils
 

@@ -19,7 +19,7 @@ from models.agent import (
 )
 from chains.house_wide_detection import HouseWideDetectionChain
 from chains.shade_analysis import ShadeAnalysisChain
-from utils.solar_utils import SolarUtils
+from utils.solar import SolarUtils
 from utils.hubitat_utils import HubitatUtils
 from utils.blind_utils import BlindUtils
 

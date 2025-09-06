@@ -12,7 +12,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
-from utils.solar_utils import SolarUtils
+from utils.solar import SolarUtils
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 

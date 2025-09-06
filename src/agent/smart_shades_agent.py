@@ -6,7 +6,7 @@ import logging
 import os
 import json
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 
 from langchain_openai import AzureChatOpenAI
@@ -16,12 +16,17 @@ from models.agent import (
     ShadeAnalysis,
     ExecutionResult,
     BlindOperation,
+    ExecutionTiming,
+    ScheduleOperation,
 )
 from chains.house_wide_detection import HouseWideDetectionChain
 from chains.shade_analysis import ShadeAnalysisChain
+from chains.execution_timing import ExecutionTimingChain
+from chains.schedule_management import ScheduleManagementChain
 from utils.solar import SolarUtils
 from utils.hubitat_utils import HubitatUtils
 from utils.blind_utils import BlindUtils
+from utils.smart_scheduler import SmartScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +39,9 @@ class SmartShadesAgent:
         self.config = None
         self.house_wide_chain = None
         self.shade_analysis_chain = None
+        self.execution_timing_chain = None
+        self.schedule_management_chain = None
+        self.scheduler = None
 
     async def initialize(self):
         """Initialize the agent and LangChain components"""
@@ -76,8 +84,27 @@ class SmartShadesAgent:
         # Initialize chains
         self.house_wide_chain = HouseWideDetectionChain(self.llm)
         self.shade_analysis_chain = ShadeAnalysisChain(self.llm)
+        self.execution_timing_chain = ExecutionTimingChain(self.llm)
+        self.schedule_management_chain = ScheduleManagementChain(self.llm)
+
+        # Initialize scheduler
+        self.scheduler = SmartScheduler(agent_instance=self)
+        self.scheduler.set_config(self.config)
+        await self.scheduler.start()
 
         logger.info("Smart Shades Agent initialized successfully")
+
+    async def shutdown(self):
+        """Shutdown the agent and cleanup resources"""
+        if self.scheduler:
+            await self.scheduler.shutdown()
+        logger.info("Smart Shades Agent shutdown completed")
+
+    def get_schedules(self, room: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get all schedules, optionally filtered by room"""
+        if self.scheduler:
+            return self.scheduler.get_schedules(room)
+        return []
 
     async def _load_config(self):
         """Load blinds configuration from JSON file"""
@@ -248,7 +275,7 @@ class SmartShadesAgent:
     async def process_request(
         self, command: str, room: str, context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Process a user request through the LangChain pipeline"""
+        """Process a user request through the enhanced LangChain pipeline with scheduling"""
         try:
             # Validate room
             if room not in self.config.rooms:
@@ -257,11 +284,32 @@ class SmartShadesAgent:
                     room,
                 )
 
+            # 1. Detect execution timing (current vs scheduled)
+            timing = await self.execution_timing_chain.ainvoke({"command": command})
+
+            if timing.execution_type == "current":
+                # Current execution flow
+                return await self._process_current_execution(command, room)
+            else:
+                # Scheduled execution flow
+                return await self._process_scheduled_execution(command, room)
+
+        except Exception as e:
+            logger.error(f"Error processing request: {e}")
+            return self._error_response(f"Error processing command: {e}", room)
+
+    async def _process_current_execution(
+        self, command: str, room: str
+    ) -> Dict[str, Any]:
+        """Process immediate execution commands"""
+        try:
             # 1. Detect if the command is house-wide using LLM prompt
             is_house_wide = await self.house_wide_chain.ainvoke({"command": command})
 
             # 2. Analyze the request
-            analysis = await self._analyze_request(command, room, is_house_wide)
+            analysis = await self._analyze_request(
+                command, room, is_house_wide.is_house_wide
+            )
 
             # 3. Execute the action
             execution_result = await self._execute_action(analysis, room)
@@ -270,8 +318,56 @@ class SmartShadesAgent:
             return self._build_response_from_execution(execution_result, room)
 
         except Exception as e:
-            logger.error(f"Error processing request: {e}")
-            return self._error_response(f"Error processing command: {e}", room)
+            logger.error(f"Error in current execution: {e}")
+            return self._error_response(f"Error executing command: {e}", room)
+
+    async def _process_scheduled_execution(
+        self, command: str, room: str
+    ) -> Dict[str, Any]:
+        """Process scheduled execution commands"""
+        try:
+            # 1. Get existing schedules for context
+            existing_schedules = self.scheduler.get_schedules(room)
+
+            # 2. Analyze the schedule request
+            schedule_op = await self.schedule_management_chain.ainvoke(
+                {
+                    "command": command,
+                    "room": room,
+                    "existing_schedules": existing_schedules,
+                }
+            )
+
+            # 3. Execute the schedule operation
+            if schedule_op.action_type == "create":
+                result = await self.scheduler.create_schedule(schedule_op, room)
+            elif schedule_op.action_type == "modify":
+                result = await self.scheduler.modify_schedule(schedule_op, room)
+            elif schedule_op.action_type == "delete":
+                result = await self.scheduler.delete_schedule(schedule_op, room)
+            else:
+                return self._error_response(
+                    f"Unknown schedule action: {schedule_op.action_type}", room
+                )
+
+            # 4. Build response
+            if result.get("success"):
+                return {
+                    "message": f"Schedule {schedule_op.action_type}d successfully: {schedule_op.schedule_description}",
+                    "room": room,
+                    "schedule_id": result.get("job_id"),
+                    "next_run": result.get("next_run"),
+                    "operation": schedule_op.action_type,
+                    "timestamp": datetime.now(),
+                }
+            else:
+                return self._error_response(
+                    result.get("error", "Unknown scheduling error"), room
+                )
+
+        except Exception as e:
+            logger.error(f"Error in scheduled execution: {e}")
+            return self._error_response(f"Error processing schedule: {e}", room)
 
     def _error_response(self, message: str, room: str) -> Dict[str, Any]:
         """Create a standardized error response"""

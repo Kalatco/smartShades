@@ -88,3 +88,55 @@ class SolarResponse(BaseModel):
         ...,
         description="Solar exposure data including window analysis and solar position",
     )
+
+
+class ScheduleRequest(BaseModel):
+    """Request model for creating or modifying a schedule"""
+
+    command: str = Field(..., description="Natural language command for scheduling")
+
+
+class ScheduleInfo(BaseModel):
+    """Information about a scheduled task"""
+
+    id: str = Field(..., description="Unique schedule ID")
+    room: Optional[str] = Field(None, description="Room associated with the schedule")
+    command: str = Field(..., description="Original command for the schedule")
+    description: str = Field(
+        ..., description="Human-readable description of the schedule"
+    )
+    trigger_type: str = Field(..., description="Type of trigger (cron, date, interval)")
+    next_run_time: Optional[datetime] = Field(
+        None, description="Next scheduled execution time"
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.now, description="Schedule creation time"
+    )
+    is_active: bool = Field(
+        True, description="Whether the schedule is currently active"
+    )
+
+
+class ScheduleResponse(BaseModel):
+    """Response for schedule operations"""
+
+    success: bool = Field(..., description="Whether the operation was successful")
+    message: str = Field(..., description="Human-readable result message")
+    schedule: Optional[ScheduleInfo] = Field(
+        None, description="Schedule information (for create/modify)"
+    )
+    timestamp: datetime = Field(
+        default_factory=datetime.now, description="Response timestamp"
+    )
+
+
+class ScheduleListResponse(BaseModel):
+    """Response for listing all schedules"""
+
+    schedules: List[ScheduleInfo] = Field(
+        ..., description="List of all active schedules"
+    )
+    total_count: int = Field(..., description="Total number of schedules")
+    timestamp: datetime = Field(
+        default_factory=datetime.now, description="Response timestamp"
+    )

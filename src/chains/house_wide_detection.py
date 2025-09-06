@@ -51,7 +51,7 @@ class HouseWideDetectionChain:
         # Create the chain
         self.chain = self.prompt | self.llm | self.parser
 
-    async def ainvoke(self, input_data: Dict[str, Any]) -> bool:
+    async def ainvoke(self, input_data: Dict[str, Any]) -> HouseWideDetection:
         """LangChain-style ainvoke method for detecting house-wide commands"""
         command = input_data.get("command", "")
 
@@ -70,10 +70,10 @@ class HouseWideDetectionChain:
             else:
                 logger.info(f"Command detected as ROOM-SPECIFIC: '{command}'")
 
-            # Return the boolean value from the Pydantic model
-            return response.is_house_wide
+            # Return the HouseWideDetection object
+            return response
 
         except Exception as e:
             logger.error(f"Error detecting house-wide command: {e}")
             # Default to False (room-specific) on error
-            return False
+            return HouseWideDetection(is_house_wide=False)

@@ -20,6 +20,7 @@ from models.config import (
     LocationConfig,
     HouseInformationConfig,
 )
+from utils.agent_response_utils import AgentResponseUtils
 from models.agent import (
     ShadeAnalysis,
     ExecutionResult,
@@ -191,7 +192,7 @@ class TestSmartShadesAgent:
         with patch.object(agent, "_analyze_request") as mock_analyze, patch.object(
             agent, "_execute_action"
         ) as mock_execute, patch.object(
-            agent, "_build_response_from_execution"
+            AgentResponseUtils, "build_response_from_execution"
         ) as mock_build_response:
 
             mock_analysis = ShadeAnalysis(
@@ -398,7 +399,9 @@ class TestSmartShadesAgent:
 
     def test_error_response(self, agent):
         """Test error response creation"""
-        result = agent._error_response("Test error message", "test_room")
+        result = AgentResponseUtils.create_error_response(
+            "Test error message", "test_room"
+        )
 
         assert result["position"] == 0
         assert result["message"] == "Test error message"
@@ -417,7 +420,9 @@ class TestSmartShadesAgent:
             reasoning="Test execution successful",
         )
 
-        result = agent._build_response_from_execution(execution_result, "test_room")
+        result = AgentResponseUtils.build_response_from_execution(
+            execution_result, "test_room"
+        )
 
         assert result["position"] == 75
         assert result["room"] == "test_room"

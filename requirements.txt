@@ -9,6 +9,7 @@ httpx>=0.25.0
 langchain-core>=0.1.0
 pvlib>=0.10.0
 numpy>=1.24.0
+pandas>=2.0.0
 pytz>=2023.3
 geopy>=2.4.0
 apscheduler>=3.10.0

@@ -13,6 +13,7 @@ from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 from .cache import SolarCache
 from .window_analysis import WindowAnalyzer
 from .constants import SolarConstants
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,20 @@ class SolarCalculator:
     def _calculate_solar_position(site, now):
         """Calculate solar position with error handling"""
         try:
-            solar_position = site.get_solarposition(now)
+            # Ensure now is timezone-aware for pandas operations
+            if hasattr(now, "tz_localize") or hasattr(now, "tz_convert"):
+                # Already pandas timestamp
+                times_index = now
+            else:
+                # Convert datetime to pandas timestamp with timezone
+                if now.tzinfo is None:
+                    # No timezone, localize to site timezone
+                    times_index = pd.to_datetime(now).tz_localize(site.tz)
+                else:
+                    # Has timezone, convert to pandas timestamp
+                    times_index = pd.to_datetime(now)
+
+            solar_position = site.get_solarposition(times_index)
             return {
                 "azimuth": float(solar_position["azimuth"].iloc[0]),
                 "elevation_true": float(solar_position["elevation"].iloc[0]),
@@ -126,7 +140,22 @@ class SolarCalculator:
     def _calculate_dni(site, now):
         """Calculate Direct Normal Irradiance with error handling"""
         try:
-            clearsky = site.get_clearsky(now)
+            # Ensure now is timezone-aware and convert to pandas timestamp
+            if hasattr(now, "tz_localize") or hasattr(now, "tz_convert"):
+                # Already pandas timestamp
+                times_index = now
+            else:
+                # Convert datetime to pandas timestamp with timezone
+                import pandas as pd
+
+                if now.tzinfo is None:
+                    # No timezone, localize to site timezone
+                    times_index = pd.to_datetime(now).tz_localize(site.tz)
+                else:
+                    # Has timezone, convert to pandas timestamp
+                    times_index = pd.to_datetime(now)
+
+            clearsky = site.get_clearsky(times_index)
             return float(clearsky["dni"].iloc[0]) if not clearsky.empty else 0
         except Exception as clearsky_error:
             logger.warning(f"Clearsky calculation failed: {clearsky_error}")
@@ -136,7 +165,24 @@ class SolarCalculator:
     def _calculate_sunrise_sunset(site, now):
         """Calculate sunrise and sunset times with comprehensive error handling"""
         try:
-            times = site.get_sun_rise_set_transit(now.date())
+            # Convert datetime to pandas timestamp with proper timezone handling
+            import pandas as pd
+
+            if hasattr(now, "date"):
+                target_date = now.date()
+            else:
+                target_date = now
+
+            # Create timezone-aware pandas timestamp for the date
+            if hasattr(target_date, "year"):
+                date_str = target_date.strftime("%Y-%m-%d")
+            else:
+                date_str = str(target_date)
+
+            # Create pandas timestamp and localize to site timezone
+            target_datetime = pd.to_datetime(date_str).tz_localize(site.tz)
+
+            times = site.get_sun_rise_set_transit(target_datetime)
             sunrise_time = times["sunrise"].iloc[0]
             sunset_time = times["sunset"].iloc[0]
 

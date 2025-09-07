@@ -189,39 +189,17 @@ class TestSmartShadesAgent:
         )
         agent.house_wide_chain = mock_house_wide_chain
 
-        with patch.object(agent, "_analyze_request") as mock_analyze, patch.object(
-            agent, "_execute_action"
-        ) as mock_execute, patch.object(
-            AgentResponseUtils, "build_response_from_execution"
-        ) as mock_build_response:
-
-            mock_analysis = ShadeAnalysis(
-                operations=[
-                    BlindOperation(blind_filter=["test"], position=50, reasoning="Test")
-                ],
-                scope="room",
-                reasoning="Test analysis",
-            )
-            mock_analyze.return_value = mock_analysis
-
-            mock_execution = ExecutionResult(
-                executed_blinds=["Test Blind 1"],
-                affected_rooms=["test_room"],
-                total_blinds=1,
-                position=50,
-                scope="room",
-                reasoning="Test execution",
-            )
-            mock_execute.return_value = mock_execution
+        with patch(
+            "utils.execution_utils.ExecutionUtils.process_current_execution"
+        ) as mock_process_execution:
 
             mock_response = {"message": "Success", "position": 50}
-            mock_build_response.return_value = mock_response
+            mock_process_execution.return_value = mock_response
 
             result = await agent.process_request("close blinds", "test_room")
 
             assert result == mock_response
-            mock_analyze.assert_called_once_with("close blinds", "test_room", False)
-            mock_execute.assert_called_once_with(mock_analysis, "test_room")
+            mock_process_execution.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_process_scheduled_execution_flow(self, agent, mock_config):

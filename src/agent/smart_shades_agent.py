@@ -24,6 +24,7 @@ from utils.blind_utils import BlindUtils
 from utils.smart_scheduler import SmartScheduler
 from utils.config_utils import ConfigManager
 from utils.agent_response_utils import AgentResponseUtils
+from utils.execution_utils import ExecutionUtils
 
 logger = logging.getLogger(__name__)
 
@@ -89,151 +90,15 @@ class SmartShadesAgent:
         self, command: str, room: str, is_house_wide: bool = False
     ) -> ShadeAnalysis:
         """Analyze the incoming request and determine target position and affected blinds"""
-
-        # Get available blinds for the current room
-        room_blinds = []
-        if room in self.config.rooms:
-            room_blinds = self.config.rooms[room].blinds
-
-        # Get current positions of blinds in this room
-        try:
-            current_positions = await HubitatUtils.get_room_current_positions(
-                self.config, room
-            )
-        except Exception as e:
-            logger.warning(f"Could not get current positions: {e}")
-            current_positions = {blind.name: 50 for blind in room_blinds}
-
-        # Get solar information and window sun exposure
-        try:
-            window_sun_info = SolarUtils.get_window_sun_exposure(self.config, room)
-        except Exception as e:
-            logger.warning(f"Could not get solar info: {e}")
-            window_sun_info = {"error": "Solar info unavailable"}
-
-        # Prepare the command with house-wide hint if needed
-        if is_house_wide:
-            enhanced_command = f"[HOUSE-WIDE COMMAND] {command}"
-        else:
-            enhanced_command = command
-
-        # Use the shade analysis chain
-        analysis_input = {
-            "command": enhanced_command,
-            "room": room,
-            "room_blinds": room_blinds,
-            "current_positions": current_positions,
-            "window_sun_info": window_sun_info,
-            "house_orientation": getattr(
-                self.config.houseInformation, "orientation", ""
-            ),
-            "notes": getattr(self.config.houseInformation, "notes", ""),
-        }
-
-        try:
-            analysis = await self.shade_analysis_chain.ainvoke(analysis_input)
-            return analysis
-        except Exception as e:
-            logger.error(f"Error in shade analysis: {e}")
-            # Simple fallback
-            return ShadeAnalysis(
-                position=50,
-                scope="room",
-                blind_filter=[],
-                reasoning=f"Fallback parsing due to error: {e}",
-            )
+        return await ExecutionUtils.analyze_request(
+            self.shade_analysis_chain, self.config, command, room, is_house_wide
+        )
 
     async def _execute_action(
         self, analysis: ShadeAnalysis, room: str
     ) -> ExecutionResult:
         """Execute the shade position change via Hubitat API"""
-        if not room or room not in self.config.rooms:
-            return ExecutionResult(
-                executed_blinds=[],
-                affected_rooms=[],
-                total_blinds=0,
-                position=0,
-                scope="error",
-                reasoning=f"Invalid room: {room}",
-            )
-
-        try:
-            all_executed_blinds = []
-            all_affected_rooms = []
-            executed_position = None
-
-            # Process operations (new format only)
-            if analysis.operations:
-                # Multi-operation format: execute each operation separately
-                for operation in analysis.operations:
-                    target_blinds, affected_rooms = (
-                        BlindUtils.get_target_blinds_for_operation(
-                            self.config, analysis.scope, operation.blind_filter, room
-                        )
-                    )
-
-                    if target_blinds:
-                        # Execute this operation
-                        await HubitatUtils.control_blinds(
-                            self.config, target_blinds, operation.position
-                        )
-                        all_executed_blinds.extend(
-                            [blind.name for blind in target_blinds]
-                        )
-                        all_affected_rooms.extend(affected_rooms)
-                        # Use the first operation's position as the main position
-                        if executed_position is None:
-                            executed_position = operation.position
-            else:
-                # No operations - this shouldn't happen with new format
-                logger.warning("ShadeAnalysis received with no operations")
-                return ExecutionResult(
-                    executed_blinds=[],
-                    affected_rooms=[],
-                    total_blinds=0,
-                    position=0,
-                    scope=analysis.scope,
-                    reasoning="No operations to execute",
-                )
-
-            if not all_executed_blinds:
-                return ExecutionResult(
-                    executed_blinds=[],
-                    affected_rooms=[],
-                    total_blinds=0,
-                    position=executed_position or 0,  # Fallback to 0 if still None
-                    scope=analysis.scope,
-                    reasoning="No matching blinds found",
-                )
-
-            # Remove duplicates while preserving order
-            unique_blinds = list(dict.fromkeys(all_executed_blinds))
-            unique_rooms = list(dict.fromkeys(all_affected_rooms))
-
-            result = ExecutionResult(
-                executed_blinds=unique_blinds,
-                affected_rooms=unique_rooms,
-                total_blinds=len(unique_blinds),
-                position=executed_position or 0,  # Fallback to 0 if still None
-                scope=analysis.scope,
-                reasoning=analysis.reasoning,
-            )
-
-            logger.info(
-                f"Executed: Set {len(unique_blinds)} blinds to {executed_position}%"
-            )
-            return result
-
-        except Exception as e:
-            logger.error(f"Error executing action: {e}")
-            return ExecutionResult(
-                executed_blinds=[],
-                affected_rooms=[],
-                total_blinds=0,
-                position=0,  # Default to 0 on error
-                scope="error",
-                reasoning=f"Error controlling blinds: {e}",
-            )
+        return await ExecutionUtils.execute_action(self.config, analysis, room)
 
     async def process_request(
         self, command: str, room: str, context: Optional[Dict[str, Any]] = None
@@ -241,7 +106,7 @@ class SmartShadesAgent:
         """Process a user request through the enhanced LangChain pipeline with scheduling"""
         try:
             # Validate room
-            if room not in self.config.rooms:
+            if not ExecutionUtils.validate_room(self.config, room):
                 return AgentResponseUtils.create_error_response(
                     f"Invalid room: {room}. Available rooms: {list(self.config.rooms.keys())}",
                     room,
@@ -267,28 +132,13 @@ class SmartShadesAgent:
         self, command: str, room: str
     ) -> Dict[str, Any]:
         """Process immediate execution commands"""
-        try:
-            # 1. Detect if the command is house-wide using LLM prompt
-            is_house_wide = await self.house_wide_chain.ainvoke({"command": command})
-
-            # 2. Analyze the request
-            analysis = await self._analyze_request(
-                command, room, is_house_wide.is_house_wide
-            )
-
-            # 3. Execute the action
-            execution_result = await self._execute_action(analysis, room)
-
-            # 4. Build and return response
-            return AgentResponseUtils.build_response_from_execution(
-                execution_result, room
-            )
-
-        except Exception as e:
-            logger.error(f"Error in current execution: {e}")
-            return AgentResponseUtils.create_error_response(
-                f"Error executing command: {e}", room
-            )
+        return await ExecutionUtils.process_current_execution(
+            self.shade_analysis_chain,
+            self.house_wide_chain,
+            self.config,
+            command,
+            room,
+        )
 
     async def _process_scheduled_execution(
         self, command: str, room: str

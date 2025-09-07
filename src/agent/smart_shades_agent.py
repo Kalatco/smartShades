@@ -3,13 +3,8 @@ Smart Shades Agent implementation using LangChain
 """
 
 import logging
-import os
-import json
 from datetime import datetime
 from typing import Dict, Any, Optional, List
-from dotenv import load_dotenv
-
-from langchain_openai import AzureChatOpenAI
 
 from models.config import HubitatConfig
 from models.agent import (
@@ -27,6 +22,7 @@ from utils.solar import SolarUtils
 from utils.hubitat_utils import HubitatUtils
 from utils.blind_utils import BlindUtils
 from utils.smart_scheduler import SmartScheduler
+from utils.config_utils import ConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -45,41 +41,21 @@ class SmartShadesAgent:
 
     async def initialize(self):
         """Initialize the agent and LangChain components"""
-        # Load environment variables from .env file
-        load_dotenv()
+        # Load environment variables
+        ConfigManager.load_environment()
+
+        # Validate environment
+        if not ConfigManager.validate_environment():
+            raise ValueError("Required environment variables are not set")
 
         # Load configuration
-        await self._load_config()
+        self.config = await ConfigManager.load_blinds_config()
 
         # Override config with environment variables for Hubitat
-        hubitat_access_token = os.getenv("HUBITAT_ACCESS_TOKEN")
-        hubitat_api_url = os.getenv("HUBITAT_API_URL")
-
-        if hubitat_access_token:
-            self.config.accessToken = hubitat_access_token
-        if hubitat_api_url:
-            self.config.hubitatUrl = hubitat_api_url
-        if not self.config.makerApiId:
-            self.config.makerApiId = "1"  # Default setup
+        self.config = ConfigManager.override_hubitat_config(self.config)
 
         # Initialize LLM
-        api_key = os.getenv("AZURE_OPENAI_API_KEY")
-        azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
-        api_version = os.getenv("AZURE_OPENAI_API_VERSION")
-
-        if not all([api_key, azure_endpoint, deployment_name, api_version]):
-            raise ValueError(
-                "Azure OpenAI environment variables are required: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT_NAME, AZURE_OPENAI_API_VERSION"
-            )
-
-        self.llm = AzureChatOpenAI(
-            api_key=api_key,
-            azure_endpoint=azure_endpoint,
-            deployment_name=deployment_name,
-            api_version=api_version,
-            temperature=0,
-        )
+        self.llm = ConfigManager.create_azure_llm()
 
         # Initialize chains
         self.house_wide_chain = HouseWideDetectionChain(self.llm)
@@ -92,7 +68,9 @@ class SmartShadesAgent:
         self.scheduler.set_config(self.config)
         await self.scheduler.start()
 
-        logger.info("Smart Shades Agent initialized successfully")
+        # Log configuration summary
+        config_summary = ConfigManager.get_config_summary(self.config)
+        logger.info(f"Smart Shades Agent initialized successfully: {config_summary}")
 
     async def shutdown(self):
         """Shutdown the agent and cleanup resources"""
@@ -105,22 +83,6 @@ class SmartShadesAgent:
         if self.scheduler:
             return self.scheduler.get_schedules(room)
         return []
-
-    async def _load_config(self):
-        """Load blinds configuration from JSON file"""
-        config_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "blinds_config.json",
-        )
-
-        try:
-            with open(config_path, "r") as f:
-                config_data = json.load(f)
-            self.config = HubitatConfig(**config_data)
-            logger.info(f"Loaded configuration for {len(self.config.rooms)} rooms")
-        except Exception as e:
-            logger.error(f"Error loading configuration: {e}")
-            raise
 
     async def _analyze_request(
         self, command: str, room: str, is_house_wide: bool = False

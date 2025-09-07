@@ -9,9 +9,6 @@ import os
 from unittest.mock import AsyncMock, Mock, patch, MagicMock
 from datetime import datetime
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
-
 from agent.smart_shades_agent import SmartShadesAgent
 from models.config import (
     HubitatConfig,
@@ -20,7 +17,7 @@ from models.config import (
     LocationConfig,
     HouseInformationConfig,
 )
-from utils.agent_response_utils import AgentResponseUtils
+from utils.agent.smart_shades.agent_response_utils import AgentResponseUtils
 from models.agent import (
     ShadeAnalysis,
     ExecutionResult,
@@ -190,7 +187,7 @@ class TestSmartShadesAgent:
         agent.house_wide_chain = mock_house_wide_chain
 
         with patch(
-            "utils.execution_utils.ExecutionUtils.process_current_execution"
+            "utils.agent.smart_shades.execution_utils.ExecutionUtils.process_current_execution"
         ) as mock_process_execution:
 
             mock_response = {"message": "Success", "position": 50}

@@ -9,9 +9,6 @@ import os
 from unittest.mock import AsyncMock, Mock, patch, MagicMock
 from datetime import datetime
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
-
 from agent.smart_shades_agent import SmartShadesAgent
 from models.config import (
     HubitatConfig,

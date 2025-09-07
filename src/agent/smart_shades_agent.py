@@ -23,7 +23,7 @@ from utils.hubitat_utils import HubitatUtils
 from utils.blind_utils import BlindUtils
 from utils.smart_scheduler import SmartScheduler
 from utils.config_utils import ConfigManager
-from utils.agent_response_utils import AgentResponseUtils
+from utils.agent.smart_shades.agent_response_utils import AgentResponseUtils
 from utils.agent.smart_shades.execution_utils import ExecutionUtils
 
 logger = logging.getLogger(__name__)

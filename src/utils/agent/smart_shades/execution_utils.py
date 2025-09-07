@@ -179,7 +179,7 @@ class ExecutionUtils:
         room: str,
     ) -> Dict[str, Any]:
         """Process immediate execution commands using extracted utilities"""
-        from utils.agent_response_utils import AgentResponseUtils
+        from utils.agent.smart_shades.agent_response_utils import AgentResponseUtils
 
         try:
             # 1. Detect if the command is house-wide using LLM prompt

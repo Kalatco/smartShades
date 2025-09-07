@@ -13,7 +13,7 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from utils.agent_response_utils import AgentResponseUtils
+from utils.agent.smart_shades.agent_response_utils import AgentResponseUtils
 from models.config import (
     HubitatConfig,
     RoomConfig,
@@ -74,7 +74,9 @@ class TestAgentResponseUtils:
 
         # Mock the execution_result.executed_blinds to be None after creation
         with patch.object(execution_result, "executed_blinds", None):
-            with patch("utils.agent_response_utils.logger") as mock_logger:
+            with patch(
+                "utils.agent.smart_shades.agent_response_utils.logger"
+            ) as mock_logger:
                 result = AgentResponseUtils.build_response_from_execution(
                     execution_result, room
                 )
@@ -125,7 +127,7 @@ class TestAgentResponseUtils:
         )
 
         with patch(
-            "utils.agent_response_utils.HubitatUtils.get_room_current_positions"
+            "utils.agent.smart_shades.agent_response_utils.HubitatUtils.get_room_current_positions"
         ) as mock_get_positions:
             mock_get_positions.return_value = {"blind1": 60, "blind2": 80}
 
@@ -157,7 +159,7 @@ class TestAgentResponseUtils:
         )
 
         with patch(
-            "utils.agent_response_utils.HubitatUtils.get_room_current_positions"
+            "utils.agent.smart_shades.agent_response_utils.HubitatUtils.get_room_current_positions"
         ) as mock_get_positions:
             mock_get_positions.side_effect = Exception("Connection error")
 

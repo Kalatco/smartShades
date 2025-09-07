@@ -336,7 +336,7 @@ class TestExecutionUtils:
         ) as mock_analyze, patch(
             "utils.agent.smart_shades.execution_utils.ExecutionUtils.execute_action"
         ) as mock_execute, patch(
-            "utils.agent_response_utils.AgentResponseUtils.build_response_from_execution"
+            "utils.agent.smart_shades.agent_response_utils.AgentResponseUtils.build_response_from_execution"
         ) as mock_build_response:
 
             mock_analyze.return_value = mock_analysis
@@ -375,7 +375,7 @@ class TestExecutionUtils:
         mock_house_wide_chain.ainvoke.side_effect = Exception("Chain error")
 
         with patch(
-            "utils.agent_response_utils.AgentResponseUtils.create_error_response"
+            "utils.agent.smart_shades.agent_response_utils.AgentResponseUtils.create_error_response"
         ) as mock_error_response:
             mock_error_response.return_value = {"error": "Chain error"}
 

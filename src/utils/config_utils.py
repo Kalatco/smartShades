@@ -108,7 +108,7 @@ class ConfigManager:
             "hubitat_configured": bool(config.accessToken and config.hubitatUrl),
             "maker_api_id": config.makerApiId,
             "house_orientation": (
-                getattr(config.houseInformation, "orientation", "not set")
+                getattr(config.houseInformation, "orientation", "not set") or "not set"
                 if hasattr(config, "houseInformation")
                 else "not configured"
             ),

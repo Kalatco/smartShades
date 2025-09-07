@@ -409,7 +409,3 @@ class SmartShadesAgent:
                 "affected_blinds": blind_names,
                 "timestamp": datetime.now(),
             }
-
-    async def shutdown(self):
-        """Shutdown the agent"""
-        logger.info("Smart Shades Agent shutdown complete")

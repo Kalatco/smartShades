@@ -13,7 +13,7 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from utils.execution_utils import ExecutionUtils
+from utils.agent.smart_shades.execution_utils import ExecutionUtils
 from models.config import (
     HubitatConfig,
     RoomConfig,
@@ -83,7 +83,7 @@ class TestExecutionUtils:
     async def test_get_room_current_positions_success(self, mock_config):
         """Test getting current positions successfully"""
         with patch(
-            "utils.execution_utils.HubitatUtils.get_room_current_positions"
+            "utils.agent.smart_shades.execution_utils.HubitatUtils.get_room_current_positions"
         ) as mock_get_positions:
             mock_get_positions.return_value = {"main_blind": 75, "side_blind": 50}
 
@@ -98,7 +98,7 @@ class TestExecutionUtils:
     async def test_get_room_current_positions_error_fallback(self, mock_config):
         """Test getting current positions with error fallback"""
         with patch(
-            "utils.execution_utils.HubitatUtils.get_room_current_positions"
+            "utils.agent.smart_shades.execution_utils.HubitatUtils.get_room_current_positions"
         ) as mock_get_positions:
             mock_get_positions.side_effect = Exception("Connection error")
 
@@ -121,9 +121,9 @@ class TestExecutionUtils:
         mock_shade_analysis_chain.ainvoke.return_value = mock_analysis
 
         with patch(
-            "utils.execution_utils.HubitatUtils.get_room_current_positions"
+            "utils.agent.smart_shades.execution_utils.HubitatUtils.get_room_current_positions"
         ) as mock_get_positions, patch(
-            "utils.execution_utils.SolarUtils.get_window_sun_exposure"
+            "utils.agent.smart_shades.execution_utils.SolarUtils.get_window_sun_exposure"
         ) as mock_solar:
 
             mock_get_positions.return_value = {"main_blind": 50, "side_blind": 60}
@@ -157,9 +157,9 @@ class TestExecutionUtils:
         mock_shade_analysis_chain.ainvoke.return_value = mock_analysis
 
         with patch(
-            "utils.execution_utils.HubitatUtils.get_room_current_positions"
+            "utils.agent.smart_shades.execution_utils.HubitatUtils.get_room_current_positions"
         ) as mock_get_positions, patch(
-            "utils.execution_utils.SolarUtils.get_window_sun_exposure"
+            "utils.agent.smart_shades.execution_utils.SolarUtils.get_window_sun_exposure"
         ) as mock_solar:
 
             mock_get_positions.return_value = {"main_blind": 50}
@@ -185,9 +185,9 @@ class TestExecutionUtils:
         mock_shade_analysis_chain.ainvoke.side_effect = Exception("Chain error")
 
         with patch(
-            "utils.execution_utils.HubitatUtils.get_room_current_positions"
+            "utils.agent.smart_shades.execution_utils.HubitatUtils.get_room_current_positions"
         ) as mock_get_positions, patch(
-            "utils.execution_utils.SolarUtils.get_window_sun_exposure"
+            "utils.agent.smart_shades.execution_utils.SolarUtils.get_window_sun_exposure"
         ) as mock_solar:
 
             mock_get_positions.return_value = {"main_blind": 50}
@@ -239,9 +239,9 @@ class TestExecutionUtils:
         )
 
         with patch(
-            "utils.execution_utils.BlindUtils.get_target_blinds_for_operation"
+            "utils.agent.smart_shades.execution_utils.BlindUtils.get_target_blinds_for_operation"
         ) as mock_get_blinds, patch(
-            "utils.execution_utils.HubitatUtils.control_blinds"
+            "utils.agent.smart_shades.execution_utils.HubitatUtils.control_blinds"
         ) as mock_control:
 
             # Mock getting target blinds
@@ -295,7 +295,7 @@ class TestExecutionUtils:
         )
 
         with patch(
-            "utils.execution_utils.BlindUtils.get_target_blinds_for_operation"
+            "utils.agent.smart_shades.execution_utils.BlindUtils.get_target_blinds_for_operation"
         ) as mock_get_blinds:
             # Return empty list for no matching blinds
             mock_get_blinds.return_value = ([], [])
@@ -332,9 +332,9 @@ class TestExecutionUtils:
         )
 
         with patch(
-            "utils.execution_utils.ExecutionUtils.analyze_request"
+            "utils.agent.smart_shades.execution_utils.ExecutionUtils.analyze_request"
         ) as mock_analyze, patch(
-            "utils.execution_utils.ExecutionUtils.execute_action"
+            "utils.agent.smart_shades.execution_utils.ExecutionUtils.execute_action"
         ) as mock_execute, patch(
             "utils.agent_response_utils.AgentResponseUtils.build_response_from_execution"
         ) as mock_build_response:

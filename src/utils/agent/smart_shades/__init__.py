@@ -1,0 +1,3 @@
+"""
+Smart Shades agent utilities
+"""

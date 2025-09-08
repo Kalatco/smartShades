@@ -254,14 +254,9 @@ class TestSmartShadesAgent:
 
         with patch(
             "utils.hubitat_utils.HubitatUtils.get_room_current_positions"
-        ) as mock_positions, patch(
-            "utils.solar.SolarUtils.get_window_sun_exposure"
-        ) as mock_solar:
+        ) as mock_positions:
 
             mock_positions.return_value = {"Test Blind 1": 50, "Test Blind 2": 75}
-            mock_solar.return_value = {
-                "Test Blind 1": {"is_sunny": True, "sun_intensity": "high"}
-            }
 
             result = await agent._analyze_request("block the sun", "test_room", False)
 

@@ -165,8 +165,6 @@ class TestSmartShadesAgentIntegration:
         ) as mock_analysis, patch(
             "utils.hubitat_utils.HubitatUtils.get_room_current_positions"
         ) as mock_positions, patch(
-            "utils.solar.SolarUtils.get_window_sun_exposure"
-        ) as mock_solar, patch(
             "utils.blind_utils.BlindUtils.get_target_blinds_for_operation"
         ) as mock_get_blinds, patch(
             "utils.hubitat_utils.HubitatUtils.control_blinds"
@@ -182,13 +180,10 @@ class TestSmartShadesAgentIntegration:
                 is_house_wide=False, reasoning="Specific blind mentioned"
             )
 
-            # Setup current positions and solar info
+            # Setup current positions
             mock_positions.return_value = {
                 "Living Room Front Window": 0,
                 "Living Room Side Window": 25,
-            }
-            mock_solar.return_value = {
-                "Living Room Front Window": {"is_sunny": False, "sun_intensity": "none"}
             }
 
             # Setup analysis result
@@ -283,8 +278,6 @@ class TestSmartShadesAgentIntegration:
         ) as mock_analysis, patch(
             "utils.hubitat_utils.HubitatUtils.get_room_current_positions"
         ) as mock_positions, patch(
-            "utils.solar.SolarUtils.get_window_sun_exposure"
-        ) as mock_solar, patch(
             "utils.blind_utils.BlindUtils.get_target_blinds_for_operation"
         ) as mock_get_blinds, patch(
             "utils.hubitat_utils.HubitatUtils.control_blinds"
@@ -300,12 +293,11 @@ class TestSmartShadesAgentIntegration:
                 is_house_wide=True, reasoning="'all blinds' indicates house-wide scope"
             )
 
-            # Setup current positions and solar info
+            # Setup current positions
             mock_positions.return_value = {
                 "Living Room Front Window": 75,
                 "Living Room Side Window": 50,
             }
-            mock_solar.return_value = {}
 
             # Setup analysis result
             mock_analysis.return_value = ShadeAnalysis(
@@ -337,8 +329,8 @@ class TestSmartShadesAgentIntegration:
             mock_control.assert_called_once_with(agent.config, all_blinds, 0)
 
     @pytest.mark.asyncio
-    async def test_solar_aware_command(self, initialized_agent):
-        """Test solar-aware command: 'block the sun'"""
+    async def test_partial_command(self, initialized_agent):
+        """Test partial command: 'close some blinds'"""
         agent = initialized_agent
 
         with patch.object(
@@ -350,8 +342,6 @@ class TestSmartShadesAgentIntegration:
         ) as mock_analysis, patch(
             "utils.hubitat_utils.HubitatUtils.get_room_current_positions"
         ) as mock_positions, patch(
-            "utils.solar.SolarUtils.get_window_sun_exposure"
-        ) as mock_solar, patch(
             "utils.blind_utils.BlindUtils.get_target_blinds_for_operation"
         ) as mock_get_blinds, patch(
             "utils.hubitat_utils.HubitatUtils.control_blinds"
@@ -373,23 +363,17 @@ class TestSmartShadesAgentIntegration:
                 "Office West Window": 75,
             }
 
-            # Setup solar info - east window is sunny
-            mock_solar.return_value = {
-                "Office East Window": {"is_sunny": True, "sun_intensity": "high"},
-                "Office West Window": {"is_sunny": False, "sun_intensity": "none"},
-            }
-
-            # Setup analysis result - should target sunny window
+            # Setup analysis result - should target one window
             mock_analysis.return_value = ShadeAnalysis(
                 operations=[
                     BlindOperation(
                         blind_filter=["east"],
-                        position=0,
-                        reasoning="Block sun on east-facing window with high intensity",
+                        position=25,
+                        reasoning="Partially close east window",
                     )
                 ],
                 scope="specific",
-                reasoning="Solar-aware operation targeting sunny windows",
+                reasoning="Partial command targeting specific window",
             )
 
             # Setup blind targeting
@@ -399,17 +383,17 @@ class TestSmartShadesAgentIntegration:
             mock_get_blinds.return_value = ([target_blind], ["office"])
             mock_control.return_value = None
 
-            result = await agent.process_request("block the sun", "office")
+            result = await agent.process_request(
+                "close the east window a bit", "office"
+            )
 
-            assert result["position"] == 0
+            assert result["position"] == 25
             assert "Office East Window" in result["affected_blinds"]
 
-            # Verify that solar information was provided to the analysis
+            # Verify that current positions were provided to the analysis
             call_args = mock_analysis.call_args[0][0]
-            assert "window_sun_info" in call_args
-            assert (
-                call_args["window_sun_info"]["Office East Window"]["is_sunny"] is True
-            )
+            assert "current_positions" in call_args
+            # Note: Solar position analysis removed from immediate operations
 
     @pytest.mark.asyncio
     async def test_error_handling_chain_failure(self, initialized_agent):
@@ -440,8 +424,6 @@ class TestSmartShadesAgentIntegration:
         ) as mock_analysis, patch(
             "utils.hubitat_utils.HubitatUtils.get_room_current_positions"
         ) as mock_positions, patch(
-            "utils.solar.SolarUtils.get_window_sun_exposure"
-        ) as mock_solar, patch(
             "utils.blind_utils.BlindUtils.get_target_blinds_for_operation"
         ) as mock_get_blinds, patch(
             "utils.hubitat_utils.HubitatUtils.control_blinds"
@@ -455,7 +437,6 @@ class TestSmartShadesAgentIntegration:
                 is_house_wide=False, reasoning="Test"
             )
             mock_positions.return_value = {"Test Blind": 50}
-            mock_solar.return_value = {}
             mock_analysis.return_value = ShadeAnalysis(
                 operations=[
                     BlindOperation(blind_filter=["test"], position=25, reasoning="Test")

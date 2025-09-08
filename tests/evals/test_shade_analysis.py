@@ -88,7 +88,6 @@ class TestShadeAnalysisChain:
                             "Guest Side Window": 50,
                             "Guest Front Window": 50,
                         },
-                        "window_sun_info": {},
                         "house_orientation": "east-west",
                         "notes": "",
                     }
@@ -141,7 +140,6 @@ class TestShadeAnalysisChain:
                             "Guest Side Window": 50,
                             "Guest Front Window": 50,
                         },
-                        "window_sun_info": {},
                         "house_orientation": "east-west",
                         "notes": "",
                     }
@@ -193,7 +191,6 @@ class TestShadeAnalysisChain:
                             "Guest Side Window": 50,
                             "Guest Front Window": 50,
                         },
-                        "window_sun_info": {},
                         "house_orientation": "east-west",
                         "notes": "",
                     }
@@ -235,7 +232,6 @@ class TestShadeAnalysisChain:
                             "Guest Side Window": 50,
                             "Guest Front Window": 50,
                         },
-                        "window_sun_info": {},
                         "house_orientation": "east-west",
                         "notes": "",
                     }
@@ -288,7 +284,6 @@ class TestShadeAnalysisChain:
                             "Guest Side Window": case["current_position"],
                             "Guest Front Window": case["current_position"],
                         },
-                        "window_sun_info": {},
                         "house_orientation": "east-west",
                         "notes": "",
                     }
@@ -334,7 +329,6 @@ class TestShadeAnalysisChain:
                             "Guest Side Window": 0,
                             "Guest Front Window": 0,
                         },
-                        "window_sun_info": {},
                         "house_orientation": "east-west",
                         "notes": "",
                     }
@@ -345,59 +339,6 @@ class TestShadeAnalysisChain:
                 assert len(result.operations) == 1
                 assert result.operations[0].position == case["expected_position"]
                 assert result.operations[0].blind_filter == case["expected_filter"]
-
-    @pytest.mark.asyncio
-    async def test_solar_context_integration(self, chain, mock_llm, sample_blinds):
-        """Test commands with solar context"""
-        solar_commands = [
-            {
-                "command": "block the sun",
-                "window_sun_info": {
-                    "Guest Front Window": {"is_sunny": True, "sun_intensity": "high"},
-                    "Guest Side Window": {"is_sunny": False, "sun_intensity": "none"},
-                },
-            },
-            {
-                "command": "reduce glare",
-                "window_sun_info": {
-                    "Guest Front Window": {"is_sunny": True, "sun_intensity": "medium"},
-                    "Guest Side Window": {"is_sunny": False, "sun_intensity": "none"},
-                },
-            },
-        ]
-
-        for case in solar_commands:
-            # Mock the LLM response that considers solar context
-            expected_result = ShadeAnalysis(
-                operations=[
-                    BlindOperation(
-                        blind_filter=["front"],  # Should target the sunny window
-                        position=0,  # Close to block sun
-                        reasoning="Block sun on sunny window",
-                    )
-                ],
-                scope="specific",
-                reasoning=f"Solar-aware: {case['command']}",
-            )
-
-            with patch.object(chain, "ainvoke", return_value=expected_result):
-                result = await chain.ainvoke(
-                    {
-                        "command": case["command"],
-                        "room": "guest_bedroom",
-                        "room_blinds": sample_blinds,
-                        "current_positions": {
-                            "Guest Side Window": 50,
-                            "Guest Front Window": 50,
-                        },
-                        "window_sun_info": case["window_sun_info"],
-                        "house_orientation": "east-west",
-                        "notes": "",
-                    }
-                )
-
-                assert isinstance(result, ShadeAnalysis)
-                assert len(result.operations) >= 1
 
     @pytest.mark.asyncio
     async def test_error_handling(self, chain, mock_llm, sample_blinds):
@@ -414,7 +355,6 @@ class TestShadeAnalysisChain:
                     "Guest Side Window": 50,
                     "Guest Front Window": 50,
                 },
-                "window_sun_info": {},
                 "house_orientation": "east-west",
                 "notes": "",
             }
@@ -442,7 +382,6 @@ class TestShadeAnalysisChain:
                     "Guest Side Window": 50,
                     "Guest Front Window": 50,
                 },
-                "window_sun_info": {},
                 "house_orientation": "east-west",
                 "notes": "",
             }
@@ -450,20 +389,3 @@ class TestShadeAnalysisChain:
 
         assert isinstance(result, ShadeAnalysis)
         assert result.scope == "room"
-
-    @pytest.mark.asyncio
-    async def test_context_building(self, chain, mock_llm, sample_blinds):
-        """Test that context strings are built correctly"""
-        # This test verifies the helper methods work correctly
-        window_sun_info = {
-            "Guest Front Window": {"is_sunny": True, "sun_intensity": "high"},
-            "Guest Side Window": {"is_sunny": False, "sun_intensity": "none"},
-        }
-
-        solar_context = chain._build_solar_context(window_sun_info)
-        house_info = chain._build_house_info("east-west", "North windows never get sun")
-
-        assert "Direct sunlight" in solar_context
-        assert "high intensity" in solar_context
-        assert "east-west orientation" in house_info
-        assert "North windows never get sun" in house_info

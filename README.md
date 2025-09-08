@@ -11,7 +11,7 @@ This project implements an AI agent using LangChain that can intelligently contr
 - **Natural Language Control**: "open the front shade", "close all blinds", "block the sun", "im starting a movie"
 - **Multi-Blind Operations**: "open the side window halfway, and front window fully"
 - **Room-specific and house-wide control**
-- **Solar Intelligence**: Automatic sun exposure detection and glare management
+- **Solar Intelligence**: Automatic sunrise/sunset scheduling for automated blinds
 - **Specific blind targeting by name or keyword**
 - **RESTful API** for external integrations (Apple Shortcuts & Siri, Home Assistant, etc.)
 - **Structured Output Parsing**: Pydantic models ensure reliable command interpretation
@@ -30,7 +30,7 @@ graph TD
     
     C --> G[ShadeAnalysisChain]
     G --> E
-    G --> H[SolarUtils + Geocoding]
+    G --> H[SolarUtils - Sunrise/Sunset Only]
     G --> I[HubitatUtils - Get Positions]
     I --> J[Hubitat Hub]
     
@@ -76,16 +76,18 @@ graph TD
 
 1. **Command Reception**: User sends natural language command via REST API
 2. **House-wide Detection**: LangChain chain determines if command affects entire house or specific room
-3. **Command Analysis**: LangChain chain analyzes command with solar data and current blind positions
+3. **Command Analysis**: LangChain chain analyzes command with current blind positions
 4. **Blind Targeting**: Utility modules determine which specific blinds to control
 5. **Execution**: Commands sent to Hubitat hub which controls Z-Wave devices
 6. **Response**: Structured response returned to user
+
+Note: Solar position analysis has been removed. Only sunrise/sunset scheduling is supported.
 
 ## More Voice Commands Examples
 
 - **Basic Control**: "Open the blinds", "Close all shades", "Set to 75 percent"
 - **Multi-Blind**: "Open the side window halfway, and front window fully"
-- **Solar-Aware**: "Block the sun", "Reduce glare", "Open but avoid direct sunlight"
+- **Solar-Aware**: "Schedule to open at sunrise", "Close at sunset"
 - **Room-Specific**: "Close all blinds in the bedroom", "Open living room shades"
 - **Complex Multi-Commands**: "Close the north window completely and set the east window to 30%"
 - **Contextual**: "It's too bright in here", "Prepare for movie time"
@@ -98,7 +100,7 @@ The Smart Shades Agent provides a comprehensive REST API:
 |----------|---------|-------------|
 | `/rooms/{room}/control` | POST | Control blinds with natural language |
 | `/rooms/{room}/status` | GET | Get current blind positions |
-| `/rooms/{room}/solar` | GET | Get solar exposure analysis |
+| `/rooms/{room}/solar` | GET | Get sunrise/sunset times for scheduling |
 | `/rooms` | GET | List all available rooms |
 | `/docs` | GET | Swagger documentation |
 

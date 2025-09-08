@@ -406,6 +406,11 @@ class SmartScheduler:
 
         target_datetime = datetime.combine(target_date, time(hour, minute))
 
+        # Make sure target_datetime has the same timezone as reference_time
+        if reference_time.tzinfo:
+            # If reference_time is timezone-aware, localize target_datetime to the same timezone
+            target_datetime = reference_time.tzinfo.localize(target_datetime)
+
         # If the target time has already passed today, schedule for tomorrow
         if target_datetime <= reference_time:
             target_datetime += timedelta(days=1)

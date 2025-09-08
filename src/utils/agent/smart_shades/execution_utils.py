@@ -7,7 +7,6 @@ from typing import Dict, Any, List
 
 from models.config import HubitatConfig
 from models.agent import ShadeAnalysis, ExecutionResult, BlindOperation
-from utils.solar import SolarUtils
 from utils.hubitat_utils import HubitatUtils
 from utils.blind_utils import BlindUtils
 from chains.shade_analysis import ShadeAnalysisChain
@@ -42,13 +41,6 @@ class ExecutionUtils:
             logger.warning(f"Could not get current positions: {e}")
             current_positions = {blind.name: 50 for blind in room_blinds}
 
-        # Get solar information and window sun exposure
-        try:
-            window_sun_info = SolarUtils.get_window_sun_exposure(config, room)
-        except Exception as e:
-            logger.warning(f"Could not get solar info: {e}")
-            window_sun_info = {"error": "Solar info unavailable"}
-
         # Prepare the command with house-wide hint if needed
         if is_house_wide:
             enhanced_command = f"[HOUSE-WIDE COMMAND] {command}"
@@ -61,7 +53,6 @@ class ExecutionUtils:
             "room": room,
             "room_blinds": room_blinds,
             "current_positions": current_positions,
-            "window_sun_info": window_sun_info,
             "house_orientation": getattr(config.houseInformation, "orientation", ""),
             "notes": getattr(config.houseInformation, "notes", ""),
         }

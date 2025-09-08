@@ -132,7 +132,6 @@ class TestUserSpecificCases:
                         "Guest Side Window": 0,
                         "Guest Front Window": 0,
                     },
-                    "window_sun_info": {},
                     "house_orientation": "east-west",
                     "notes": "",
                 }
@@ -263,7 +262,6 @@ class TestUserSpecificCases:
                             "Guest Side Window": 0,
                             "Guest Front Window": 0,
                         },
-                        "window_sun_info": {},
                         "house_orientation": "east-west",
                         "notes": "",
                     }

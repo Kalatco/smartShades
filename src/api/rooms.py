@@ -144,23 +144,32 @@ async def get_shade_status(room: str):
 @router.get("/rooms/{room}/solar", tags=["Solar Intelligence"])
 async def get_solar_info(room: str):
     """
-    Get solar information and sun exposure analysis for a specific room
+    Get sunrise and sunset information for scheduling purposes
 
-    Returns detailed solar information including:
-    * Current sun position (azimuth, elevation)
+    Returns basic solar information for scheduling:
     * Sunrise and sunset times
-    * Per-window sun exposure analysis
-    * Recommendations for glare management
+    * Current time and timezone
+    * Location coordinates
 
-    This endpoint is used by the intelligent shade control system to automatically
-    manage blinds based on sun position and potential glare.
+    Note: Solar position analysis has been removed. This endpoint
+    now only provides sunrise/sunset data for automated scheduling.
     """
     try:
         if not agent:
             raise HTTPException(status_code=503, detail="Agent not initialized")
 
-        solar_info = SolarUtils.get_window_sun_exposure(agent.config, room)
-        return {"room": room, "solar_data": solar_info}
+        # Only provide sunrise/sunset info for scheduling
+        from utils.solar import SolarUtils
+
+        solar_info = SolarUtils.get_solar_info(agent.config)
+
+        return {
+            "room": room,
+            "solar_data": {
+                "sunrise_sunset": solar_info,
+                "note": "Only sunrise/sunset data available for scheduling",
+            },
+        }
     except Exception as e:
         logger.error(f"Error getting solar info: {e}")
         raise HTTPException(status_code=500, detail=str(e))

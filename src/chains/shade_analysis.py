@@ -23,7 +23,7 @@ class ShadeAnalysisChain:
         system_template = """Analyze this shade control request for room: {room}
 
         Available blinds in THIS room: {room_blinds_info}
-        CURRENT POSITIONS: {current_status}{solar_context}{house_info}
+        CURRENT POSITIONS: {current_status}{house_info}
 
         For commands that mention MULTIPLE specific blinds with DIFFERENT positions, use the 'operations' array.
         For commands that set the SAME position for multiple/all blinds, use the legacy single operation format.
@@ -79,12 +79,10 @@ class ShadeAnalysisChain:
         room = input_data.get("room", "")
         room_blinds = input_data.get("room_blinds", [])
         current_positions = input_data.get("current_positions", {})
-        window_sun_info = input_data.get("window_sun_info", {})
         house_orientation = input_data.get("house_orientation", "")
         notes = input_data.get("notes", "")
 
         # Build context strings
-        solar_context = self._build_solar_context(window_sun_info)
         house_info = self._build_house_info(house_orientation, notes)
 
         # Prepare variables for the prompt
@@ -103,7 +101,6 @@ class ShadeAnalysisChain:
                     "room": room,
                     "room_blinds_info": room_blinds_info,
                     "current_status": current_status,
-                    "solar_context": solar_context,
                     "house_info": house_info,
                     "user_message": command,
                     "format_instructions": self.output_parser.get_format_instructions(),
@@ -120,53 +117,6 @@ class ShadeAnalysisChain:
                 scope="room",
                 reasoning=f"Fallback parsing due to error: {e}",
             )
-
-    def _build_solar_context(self, window_sun_info: Dict[str, Any]) -> str:
-        """Build solar context string from window sun info"""
-        if "error" in window_sun_info:
-            return ""
-
-        if "message" in window_sun_info:
-            return f"\nSUN STATUS: {window_sun_info['message']}"
-
-        sunny_windows = [
-            name
-            for name, info in window_sun_info.items()
-            if isinstance(info, dict) and info.get("is_sunny", False)
-        ]
-
-        if sunny_windows:
-            # Sort by intensity to identify the brightest
-            intensity_order = {"high": 3, "medium": 2, "low": 1}
-            sorted_windows = sorted(
-                sunny_windows,
-                key=lambda x: intensity_order.get(
-                    window_sun_info[x]["sun_intensity"], 0
-                ),
-                reverse=True,
-            )
-
-            intensities = [
-                f"{name} ({window_sun_info[name]['sun_intensity']} intensity)"
-                for name in sorted_windows
-            ]
-            solar_context = (
-                f"\nSUN STATUS: Direct sunlight on: {', '.join(intensities)}"
-            )
-
-            # Highlight the brightest window
-            if len(sorted_windows) > 1:
-                brightest = sorted_windows[0]
-                brightest_intensity = window_sun_info[brightest]["sun_intensity"]
-                solar_context += f"\nBRIGHTEST: {brightest} has {brightest_intensity} intensity (main glare source)"
-
-            if "solar_info" in window_sun_info:
-                solar = window_sun_info["solar_info"]
-                solar_context += f"\nSun direction: {solar['direction']}, elevation: {solar['elevation']:.1f}°"
-
-            return solar_context
-        else:
-            return f"\nSUN STATUS: No direct sunlight on any windows in this room"
 
     def _build_house_info(self, house_orientation: str, notes: str) -> str:
         """Build house information context string"""

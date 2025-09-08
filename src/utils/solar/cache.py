@@ -5,9 +5,11 @@ Caching utilities for solar calculations to improve performance
 import logging
 from datetime import datetime
 from typing import Dict, Any
-from .constants import SolarConstants
 
 logger = logging.getLogger(__name__)
+
+# Cache TTL in seconds (5 minutes)
+CACHE_TTL_SECONDS = 300
 
 
 class SolarCache:
@@ -51,7 +53,7 @@ class SolarCache:
         cache_time = cached_result.get("_cache_time", 0)
         current_time = datetime.now().timestamp()
 
-        if (current_time - cache_time) < SolarConstants.CACHE_TTL_SECONDS:
+        if (current_time - cache_time) < CACHE_TTL_SECONDS:
             logger.debug(f"Using cached solar data: {cache_key}")
             # Return data without internal cache metadata
             return {k: v for k, v in cached_result.items() if not k.startswith("_")}
@@ -73,9 +75,7 @@ class SolarCache:
     def _cleanup_solar_cache(self) -> None:
         """Remove expired entries from solar cache"""
         current_time = datetime.now().timestamp()
-        ttl_threshold = (
-            SolarConstants.CACHE_TTL_SECONDS * 2
-        )  # Keep entries for double TTL
+        ttl_threshold = CACHE_TTL_SECONDS * 2  # Keep entries for double TTL
 
         expired_keys = [
             key

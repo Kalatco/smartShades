@@ -68,16 +68,14 @@ class WindowExposure(BaseModel):
 
 
 class SolarInfo(BaseModel):
-    """Solar position and timing information"""
+    """Solar timing information for scheduling"""
 
-    is_up: bool = Field(..., description="Whether the sun is currently up")
-    azimuth: Optional[float] = Field(None, description="Sun azimuth angle in degrees")
-    elevation: Optional[float] = Field(
-        None, description="Sun elevation angle in degrees"
-    )
-    direction: Optional[str] = Field(None, description="Cardinal direction of the sun")
     sunrise: Optional[str] = Field(None, description="Sunrise time in local timezone")
     sunset: Optional[str] = Field(None, description="Sunset time in local timezone")
+    current_time: Optional[str] = Field(
+        None, description="Current time in local timezone"
+    )
+    timezone: Optional[str] = Field(None, description="Local timezone")
 
 
 class SolarResponse(BaseModel):
@@ -86,7 +84,7 @@ class SolarResponse(BaseModel):
     room: str = Field(..., description="Room name")
     solar_data: Dict[str, Any] = Field(
         ...,
-        description="Solar exposure data including window analysis and solar position",
+        description="Solar timing data for scheduling (sunrise/sunset only)",
     )
 
 

@@ -122,12 +122,9 @@ class TestExecutionUtils:
 
         with patch(
             "utils.agent.smart_shades.execution_utils.HubitatUtils.get_room_current_positions"
-        ) as mock_get_positions, patch(
-            "utils.agent.smart_shades.execution_utils.SolarUtils.get_window_sun_exposure"
-        ) as mock_solar:
+        ) as mock_get_positions:
 
             mock_get_positions.return_value = {"main_blind": 50, "side_blind": 60}
-            mock_solar.return_value = {"sun_angle": 45, "exposure": "direct"}
 
             result = await ExecutionUtils.analyze_request(
                 mock_shade_analysis_chain,
@@ -158,12 +155,9 @@ class TestExecutionUtils:
 
         with patch(
             "utils.agent.smart_shades.execution_utils.HubitatUtils.get_room_current_positions"
-        ) as mock_get_positions, patch(
-            "utils.agent.smart_shades.execution_utils.SolarUtils.get_window_sun_exposure"
-        ) as mock_solar:
+        ) as mock_get_positions:
 
             mock_get_positions.return_value = {"main_blind": 50}
-            mock_solar.return_value = {"sun_angle": 45}
 
             result = await ExecutionUtils.analyze_request(
                 mock_shade_analysis_chain,
@@ -186,12 +180,9 @@ class TestExecutionUtils:
 
         with patch(
             "utils.agent.smart_shades.execution_utils.HubitatUtils.get_room_current_positions"
-        ) as mock_get_positions, patch(
-            "utils.agent.smart_shades.execution_utils.SolarUtils.get_window_sun_exposure"
-        ) as mock_solar:
+        ) as mock_get_positions:
 
             mock_get_positions.return_value = {"main_blind": 50}
-            mock_solar.return_value = {"sun_angle": 45}
 
             result = await ExecutionUtils.analyze_request(
                 mock_shade_analysis_chain,

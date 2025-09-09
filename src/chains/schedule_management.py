@@ -30,9 +30,12 @@ class ScheduleManagementChain:
 
         TIME PARSING:
         - "9pm", "21:00", "9 PM" → "21:00"
-        - "sunrise", "sunset" → keep as "sunrise"/"sunset" (system will resolve)
+        - "sunrise", "sunset" → ALWAYS keep as "sunrise" or "sunset" (system will resolve)
         - "after sunset" → "sunset+0" (system will add offset)
         - "in 2 hours" → "now+2h" (system will calculate)
+        
+        CRITICAL: When the command contains "sunset" or "sunrise", ALWAYS preserve these exact words in schedule_time.
+        Do NOT set schedule_time to None when sunset/sunrise is mentioned.
 
         DATE PARSING:
         - "today" → current date
@@ -57,6 +60,15 @@ class ScheduleManagementChain:
         - "stop closing blinds everyday" + existing daily close → DELETE
         - "open blinds at sunrise daily" + no existing sunrise schedule → CREATE
         - "close at 10pm today" + existing "close at 7pm today" → MODIFY (same day, different time)
+        - "close the front shade to 40% at sunset" → CREATE with schedule_time="sunset"
+        - "open blinds at sunset tomorrow" → CREATE with schedule_time="sunset", schedule_date="tomorrow"
+        
+        SOLAR TIME EXAMPLES:
+        Input: "close the front shade to 40% at sunset"
+        Output: schedule_time="sunset", command_to_execute="close the front shade to 40%"
+        
+        Input: "open at sunrise daily" 
+        Output: schedule_time="sunrise", recurrence="daily", command_to_execute="open"
 
         Extract the core shade command (without timing): "close the blinds at 9pm" → "close the blinds"
 

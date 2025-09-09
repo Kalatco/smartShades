@@ -188,7 +188,7 @@ class SmartShadesAgentV2:
                 )
             elif schedule_op.action_type == "delete":
                 result = await self.scheduler.delete_schedule(
-                    schedule_op, state["room"]
+                    schedule_op.existing_schedule_id
                 )
             else:
                 raise ValueError(f"Unknown schedule action: {schedule_op.action_type}")

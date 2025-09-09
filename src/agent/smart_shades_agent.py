@@ -163,7 +163,9 @@ class SmartShadesAgent:
             elif schedule_op.action_type == "modify":
                 result = await self.scheduler.modify_schedule(schedule_op, room)
             elif schedule_op.action_type == "delete":
-                result = await self.scheduler.delete_schedule(schedule_op, room)
+                result = await self.scheduler.delete_schedule(
+                    schedule_op.existing_schedule_id
+                )
             else:
                 return AgentResponseUtils.create_error_response(
                     f"Unknown schedule action: {schedule_op.action_type}", room

@@ -138,13 +138,11 @@ class SmartScheduler:
     ) -> Dict[str, Any]:
         """Modify an existing scheduled job"""
         try:
-            # Find existing job to modify
-            job_id = schedule_op.existing_schedule_id or self._find_similar_job(
-                schedule_op, room
-            )
+            # Use only the explicit schedule ID from the operation
+            job_id = schedule_op.existing_schedule_id
 
             if not job_id:
-                # No existing job found, create new one
+                # No existing job ID provided, create new schedule instead
                 return await self.create_schedule(schedule_op, room)
 
             # Parse new trigger
@@ -183,34 +181,23 @@ class SmartScheduler:
             logger.error(f"Error modifying schedule: {e}")
             return {"error": f"Failed to modify schedule: {e}"}
 
-    async def delete_schedule(
-        self, schedule_op: ScheduleOperation, room: str
-    ) -> Dict[str, Any]:
-        """Delete an existing scheduled job"""
+    def delete_schedule(self, schedule_id: str) -> bool:
+        """Delete a schedule by its ID directly"""
         try:
-            # Find job to delete
-            job_id = schedule_op.existing_schedule_id or self._find_similar_job(
-                schedule_op, room
-            )
-
-            if not job_id:
-                return {"error": "No matching schedule found to delete"}
+            # Check if the job exists
+            job = self.scheduler.get_job(schedule_id)
+            if not job:
+                logger.warning(f"Schedule {schedule_id} not found")
+                return False
 
             # Remove the job
-            self.scheduler.remove_job(job_id)
-
-            logger.info(f"Deleted schedule: {job_id}")
-
-            return {
-                "success": True,
-                "job_id": job_id,
-                "action": "deleted",
-                "message": f"Removed schedule: {schedule_op.schedule_description}",
-            }
+            self.scheduler.remove_job(schedule_id)
+            logger.info(f"Deleted schedule by ID: {schedule_id}")
+            return True
 
         except Exception as e:
-            logger.error(f"Error deleting schedule: {e}")
-            return {"error": f"Failed to delete schedule: {e}"}
+            logger.error(f"Error deleting schedule {schedule_id}: {e}")
+            return False
 
     def get_schedules(self, room: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all scheduled jobs, optionally filtered by room"""
@@ -370,12 +357,28 @@ class SmartScheduler:
             solar_info = SolarUtils.get_solar_info(self.config)
 
             if solar_event == "sunrise":
-                time_str = solar_info.get("sunrise", "06:00 UTC").split()[0]
+                time_str = solar_info.get("sunrise", "06:00 UTC")
             else:  # sunset
-                time_str = solar_info.get("sunset", "18:00 UTC").split()[0]
+                time_str = solar_info.get("sunset", "18:00 UTC")
 
-            hour, minute = map(int, time_str.split(":"))
-            return hour, minute
+            # Parse the time string which includes timezone (e.g., "19:45 America/Los_Angeles")
+            parts = time_str.split()
+            if len(parts) >= 1:
+                time_part = parts[0]  # "19:45"
+                hour, minute = map(int, time_part.split(":"))
+
+                # Log the solar time for debugging
+                logger.info(
+                    f"Solar {solar_event} time: {time_str} -> {hour:02d}:{minute:02d}"
+                )
+                return hour, minute
+            else:
+                # Fallback if parsing fails
+                logger.warning(f"Could not parse solar time: {time_str}")
+                if solar_event == "sunrise":
+                    return 6, 0
+                else:
+                    return 18, 0
 
         except Exception as e:
             logger.warning(f"Could not get solar time: {e}")
@@ -404,15 +407,27 @@ class SmartScheduler:
             except:
                 target_date = reference_time.date()
 
-        target_datetime = datetime.combine(target_date, time(hour, minute))
-
-        # Make sure target_datetime has the same timezone as reference_time
+        # Create target datetime in the same timezone as reference_time
         if reference_time.tzinfo:
-            # If reference_time is timezone-aware, localize target_datetime to the same timezone
-            target_datetime = reference_time.tzinfo.localize(target_datetime)
+            # Create naive datetime first, then localize to the same timezone
+            naive_target = datetime.combine(target_date, time(hour, minute))
+            target_datetime = reference_time.tzinfo.localize(naive_target)
+        else:
+            target_datetime = datetime.combine(target_date, time(hour, minute))
+
+        # Log for debugging
+        logger.info(
+            f"Parsed datetime: time_str='{time_str}', date_str='{date_str}' -> {target_datetime}"
+        )
+        logger.info(f"Reference time: {reference_time}")
 
         # If the target time has already passed today, schedule for tomorrow
-        if target_datetime <= reference_time:
+        # But only for non-solar times or if we're scheduling for "today"
+        if target_datetime <= reference_time and (date_str or "").lower() in [
+            "",
+            "today",
+        ]:
+            logger.info(f"Target time {target_datetime} has passed, moving to tomorrow")
             target_datetime += timedelta(days=1)
 
         return target_datetime
@@ -437,27 +452,3 @@ class SmartScheduler:
 
         content = f"{room}_{schedule_op.command_to_execute}_{schedule_op.schedule_time}_{schedule_op.recurrence}"
         return f"shade_{hashlib.md5(content.encode()).hexdigest()[:8]}"
-
-    def _find_similar_job(
-        self, schedule_op: ScheduleOperation, room: str
-    ) -> Optional[str]:
-        """Find existing job that matches the schedule operation"""
-        for job in self.scheduler.get_jobs():
-            # Check if job is for the same room
-            if len(job.args) >= 2 and job.args[1] == room:
-                # Check if command is similar (basic matching)
-                job_command = job.args[2] if len(job.args) >= 3 else ""
-                if self._commands_similar(job_command, schedule_op.command_to_execute):
-                    return job.id
-        return None
-
-    def _commands_similar(self, cmd1: str, cmd2: str) -> bool:
-        """Check if two commands are similar (basic implementation)"""
-        # Remove timing words and normalize
-        timing_words = ["at", "pm", "am", "today", "tomorrow", "daily", "everyday"]
-
-        def normalize_command(cmd):
-            words = cmd.lower().split()
-            return " ".join([w for w in words if w not in timing_words])
-
-        return normalize_command(cmd1) == normalize_command(cmd2)

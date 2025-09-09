@@ -15,6 +15,7 @@ import asyncio
 import re
 from utils.solar import SolarUtils
 from models.agent import ScheduleOperation
+from chains.duration_parsing import DurationParsingChain
 
 logger = logging.getLogger(__name__)
 
@@ -70,13 +71,26 @@ class SmartScheduler:
             "execute_scheduled_shade_command", execute_scheduled_shade_command
         )
 
+        # Duration parser will be initialized when needed
+        self.duration_parser = None
+
         self.config = None
 
     async def start(self):
         """Start the scheduler"""
         if not self.scheduler.running:
             self.scheduler.start()
-            logger.info("SmartScheduler started")
+
+            # Add periodic cleanup job to remove expired schedules
+            self.scheduler.add_job(
+                func=self._cleanup_expired_schedules,
+                trigger=CronTrigger(minute=0),  # Run every hour at the top of the hour
+                id="cleanup_expired_schedules",
+                name="Cleanup Expired Schedules",
+                replace_existing=True,
+            )
+
+            logger.info("SmartScheduler started with cleanup job")
 
     async def shutdown(self):
         """Shutdown the scheduler"""
@@ -98,6 +112,7 @@ class SmartScheduler:
                 schedule_op.schedule_time,
                 schedule_op.schedule_date,
                 schedule_op.recurrence,
+                schedule_op.duration,
             )
 
             if not trigger:
@@ -150,6 +165,7 @@ class SmartScheduler:
                 schedule_op.schedule_time,
                 schedule_op.schedule_date,
                 schedule_op.recurrence,
+                schedule_op.duration,
             )
 
             if not trigger:
@@ -204,6 +220,10 @@ class SmartScheduler:
         schedules = []
 
         for job in self.scheduler.get_jobs():
+            # Skip internal system jobs
+            if job.id == "cleanup_expired_schedules":
+                continue
+
             # Extract room from job args if available
             job_room = None
             if len(job.args) >= 2:
@@ -213,6 +233,13 @@ class SmartScheduler:
             if room and job_room != room:
                 continue
 
+            # Extract end_date if available (for duration-based schedules)
+            end_date = None
+            if hasattr(job.trigger, "end_date") and job.trigger.end_date:
+                end_date = (
+                    job.trigger.end_date.isoformat() if job.trigger.end_date else None
+                )
+
             schedule_info = {
                 "id": job.id,
                 "name": job.name,
@@ -220,6 +247,7 @@ class SmartScheduler:
                 "next_run_time": (
                     job.next_run_time.isoformat() if job.next_run_time else None
                 ),
+                "end_date": end_date,
                 "trigger": str(job.trigger),
                 "command": job.args[2] if len(job.args) >= 3 else "Unknown command",
             }
@@ -240,6 +268,11 @@ class SmartScheduler:
             if len(job.args) >= 3:
                 job_command = job.args[2]
 
+            # Extract end_date if available (for duration-based schedules)
+            end_date = None
+            if hasattr(job.trigger, "end_date") and job.trigger.end_date:
+                end_date = job.trigger.end_date
+
             schedule_info = {
                 "room": job_room,
                 "command": job_command,
@@ -248,6 +281,7 @@ class SmartScheduler:
                 .lower()
                 .replace("trigger", ""),
                 "next_run_time": job.next_run_time,
+                "end_date": end_date,
                 "created_at": datetime.now(),  # APScheduler doesn't track creation time
                 "is_active": True,
             }
@@ -256,33 +290,80 @@ class SmartScheduler:
         return schedules
 
     async def _parse_schedule_trigger(
-        self, schedule_time: str, schedule_date: str, recurrence: str
+        self,
+        schedule_time: str,
+        schedule_date: str,
+        recurrence: str,
+        duration: Optional[str] = None,
     ):
         """Parse schedule parameters into APScheduler trigger"""
         try:
             current_time = datetime.now()
 
+            # Calculate end date if duration is specified using LLM parsing
+            end_date = None
+            if duration and recurrence:
+                # Initialize duration parser if needed
+                if self.duration_parser is None:
+                    if self.agent and hasattr(self.agent, "llm") and self.agent.llm:
+                        self.duration_parser = DurationParsingChain(self.agent.llm)
+                    else:
+                        logger.warning(
+                            "No LLM available for duration parsing, using default 1 week"
+                        )
+                        end_date = current_time + timedelta(weeks=1)
+
+                if self.duration_parser:
+                    try:
+                        # Use the duration parsing chain directly
+                        duration_info = await self.duration_parser.ainvoke(
+                            {"duration_text": duration}
+                        )
+
+                        if duration_info.is_valid and duration_info.total_days:
+                            end_date = current_time + timedelta(
+                                days=duration_info.total_days
+                            )
+                            logger.info(
+                                f"Parsed duration '{duration}' -> {duration_info.duration_value} {duration_info.duration_unit} "
+                                f"({duration_info.total_days} days) -> end_date: {end_date}"
+                            )
+                        else:
+                            logger.warning(
+                                f"LLM could not parse duration '{duration}', using default 1 week"
+                            )
+                            end_date = current_time + timedelta(weeks=1)
+                    except Exception as e:
+                        logger.error(f"Error parsing duration '{duration}': {e}")
+                        end_date = current_time + timedelta(weeks=1)
+
             # Handle recurrence patterns
             if recurrence and recurrence.lower() in ["daily", "everyday"]:
                 # Daily recurring schedule
                 hour, minute = await self._parse_time(schedule_time, current_time)
-                return CronTrigger(hour=hour, minute=minute)
+                return CronTrigger(hour=hour, minute=minute, end_date=end_date)
 
             elif recurrence and recurrence.lower() == "weekdays":
                 # Weekday recurring schedule
                 hour, minute = await self._parse_time(schedule_time, current_time)
-                return CronTrigger(hour=hour, minute=minute, day_of_week="mon-fri")
+                return CronTrigger(
+                    hour=hour, minute=minute, day_of_week="mon-fri", end_date=end_date
+                )
 
             elif recurrence and recurrence.lower() == "weekends":
                 # Weekend recurring schedule
                 hour, minute = await self._parse_time(schedule_time, current_time)
-                return CronTrigger(hour=hour, minute=minute, day_of_week="sat-sun")
+                return CronTrigger(
+                    hour=hour, minute=minute, day_of_week="sat-sun", end_date=end_date
+                )
 
             elif recurrence and recurrence.lower() == "weekly":
                 # Weekly recurring schedule
                 hour, minute = await self._parse_time(schedule_time, current_time)
                 weekday = current_time.weekday()  # Use current day of week
-                return CronTrigger(hour=hour, minute=minute, day_of_week=weekday)
+                return CronTrigger(
+                    hour=hour, minute=minute, day_of_week=weekday, end_date=end_date
+                )
 
             else:
                 # One-time schedule
@@ -452,3 +533,29 @@ class SmartScheduler:
 
         content = f"{room}_{schedule_op.command_to_execute}_{schedule_op.schedule_time}_{schedule_op.recurrence}"
         return f"shade_{hashlib.md5(content.encode()).hexdigest()[:8]}"
+
+    def _cleanup_expired_schedules(self):
+        """Remove schedules that have reached their end date"""
+        try:
+            current_time = datetime.now()
+            removed_count = 0
+
+            for job in self.scheduler.get_jobs():
+                # Skip the cleanup job itself
+                if job.id == "cleanup_expired_schedules":
+                    continue
+
+                # Check if job has expired (CronTrigger with end_date)
+                if hasattr(job.trigger, "end_date") and job.trigger.end_date:
+                    if current_time > job.trigger.end_date:
+                        logger.info(f"Removing expired schedule: {job.id} - {job.name}")
+                        self.scheduler.remove_job(job.id)
+                        removed_count += 1
+
+            if removed_count > 0:
+                logger.info(
+                    f"Cleanup completed: removed {removed_count} expired schedules"
+                )
+
+        except Exception as e:
+            logger.error(f"Error during schedule cleanup: {e}")

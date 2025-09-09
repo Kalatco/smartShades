@@ -107,6 +107,9 @@ class ScheduleInfo(BaseModel):
     next_run_time: Optional[datetime] = Field(
         None, description="Next scheduled execution time"
     )
+    end_date: Optional[datetime] = Field(
+        None, description="End date for duration-based schedules (when they expire)"
+    )
     created_at: datetime = Field(
         default_factory=datetime.now, description="Schedule creation time"
     )

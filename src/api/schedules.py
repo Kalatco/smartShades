@@ -52,6 +52,7 @@ async def get_all_schedules():
                 description=schedule_data.get("description", ""),
                 trigger_type=schedule_data.get("trigger_type", "unknown"),
                 next_run_time=schedule_data.get("next_run_time"),
+                end_date=schedule_data.get("end_date"),
                 created_at=schedule_data.get("created_at", datetime.now()),
                 is_active=schedule_data.get("is_active", True),
             )

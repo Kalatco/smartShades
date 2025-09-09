@@ -39,6 +39,10 @@ class ScheduleOperation(BaseModel):
     recurrence: Optional[str] = Field(
         None, description="Recurrence pattern (e.g., 'daily', 'weekdays', 'once')"
     )
+    duration: Optional[str] = Field(
+        None,
+        description="Duration for recurring schedules (e.g., 'week', '7 days', '3 days', '2 weeks')",
+    )
     command_to_execute: str = Field(
         ..., description="The shade command to execute when scheduled"
     )
@@ -51,6 +55,24 @@ class ScheduleOperation(BaseModel):
     reasoning: str = Field(
         ..., description="Explanation of the schedule operation decision"
     )
+
+
+class DurationInfo(BaseModel):
+    """Structured duration information from natural language parsing"""
+
+    duration_value: Optional[int] = Field(
+        None, description="Numeric value of the duration (e.g., 2 for '2 weeks')"
+    )
+    duration_unit: Optional[str] = Field(
+        None, description="Time unit: 'days', 'weeks', or 'months'"
+    )
+    total_days: Optional[int] = Field(
+        None, description="Total duration in days for calculation"
+    )
+    is_valid: bool = Field(
+        True, description="Whether the duration was successfully parsed"
+    )
+    reasoning: str = Field(..., description="Explanation of the duration parsing")
 
 
 class BlindOperation(BaseModel):

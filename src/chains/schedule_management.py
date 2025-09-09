@@ -32,6 +32,8 @@ class ScheduleManagementChain:
         - "9pm", "21:00", "9 PM" → "21:00"
         - "sunrise", "sunset" → ALWAYS keep as "sunrise" or "sunset" (system will resolve)
         - "after sunset" → "sunset+0" (system will add offset)
+        - "15 minutes after sunset" → "sunset+15m"
+        - "30 minutes before sunrise" → "sunrise-30m"
         - "in 2 hours" → "now+2h" (system will calculate)
         
         CRITICAL: When the command contains "sunset" or "sunrise", ALWAYS preserve these exact words in schedule_time.
@@ -50,6 +52,15 @@ class ScheduleManagementChain:
         - "every Monday" → "weekly"
         - No mention → "once"
 
+        DURATION PARSING:
+        - "for the next week", "for a week" → "week" 
+        - "for 3 days", "for the next 3 days" → "3 days"
+        - "for 2 weeks" → "2 weeks"
+        - "for a month" → "month"
+        - No mention → None (indefinite)
+
+        IMPORTANT: When duration is specified (like "for the next week"), the recurrence should be "daily" unless explicitly stated otherwise.
+
         DECISION LOGIC:
         1. If user says "stop", "cancel", "remove" → DELETE existing schedule
         2. If similar schedule exists (same recurrence + similar time) → MODIFY
@@ -61,6 +72,8 @@ class ScheduleManagementChain:
         - "open blinds at sunrise daily" + no existing sunrise schedule → CREATE
         - "close at 10pm today" + existing "close at 7pm today" → MODIFY (same day, different time)
         - "close the front shade to 40% at sunset" → CREATE with schedule_time="sunset"
+        - "for the next week, close the shades 15 minutes after sunset" → CREATE with schedule_time="sunset+15m", recurrence="daily", duration="week"
+        - "for 3 days, open blinds 30 minutes before sunrise" → CREATE with schedule_time="sunrise-30m", recurrence="daily", duration="3 days"
         - "open blinds at sunset tomorrow" → CREATE with schedule_time="sunset", schedule_date="tomorrow"
         
         SOLAR TIME EXAMPLES:
@@ -69,6 +82,19 @@ class ScheduleManagementChain:
         
         Input: "open at sunrise daily" 
         Output: schedule_time="sunrise", recurrence="daily", command_to_execute="open"
+
+        Input: "close shades 15 minutes after sunset"
+        Output: schedule_time="sunset+15m", command_to_execute="close shades"
+        
+        Input: "open blinds 30 minutes before sunrise"
+        Output: schedule_time="sunrise-30m", command_to_execute="open blinds"
+
+        DURATION EXAMPLES:
+        Input: "close the shades at 9pm daily for the next week"
+        Output: schedule_time="21:00", recurrence="daily", duration="week", command_to_execute="close the shades"
+        
+        Input: "open blinds every morning for 3 days"
+        Output: schedule_time="sunrise", recurrence="daily", duration="3 days", command_to_execute="open blinds"
 
         Extract the core shade command (without timing): "close the blinds at 9pm" → "close the blinds"
 

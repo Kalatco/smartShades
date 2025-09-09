@@ -2,7 +2,7 @@
 Pydantic models for LangChain agent and internal processing
 """
 
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Dict
 from pydantic import BaseModel, Field
 from datetime import datetime
 
@@ -91,3 +91,41 @@ class ExecutionResult(BaseModel):
     position: int = Field(..., ge=0, le=100, description="Position that was set")
     scope: str = Field(..., description="Control scope that was executed")
     reasoning: str = Field(..., description="Explanation of what was done")
+
+
+class RoomBlindsExecution(BaseModel):
+    """Blinds execution data for a single room"""
+
+    blinds: Dict[str, int] = Field(
+        ...,
+        description="Dictionary mapping blind IDs to their target positions (0-100)",
+    )
+
+
+class BlindExecutionRequest(BaseModel):
+    """V2 execution request structure for direct blind control"""
+
+    rooms: Dict[str, RoomBlindsExecution] = Field(
+        ..., description="Dictionary mapping room names to their blind execution data"
+    )
+
+
+class BlindExecutionResult(BaseModel):
+    """Result of V2 blind execution"""
+
+    successful_blinds: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Successfully executed blinds with their positions",
+    )
+    failed_blinds: Dict[str, str] = Field(
+        default_factory=dict, description="Failed blinds with error messages"
+    )
+    total_attempted: int = Field(
+        default=0, description="Total number of blinds attempted"
+    )
+    total_successful: int = Field(
+        default=0, description="Total number of blinds successfully controlled"
+    )
+    execution_summary: str = Field(
+        default="", description="Summary of the execution results"
+    )

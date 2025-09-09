@@ -72,3 +72,32 @@ class HubitatUtils:
             )
 
         return positions
+
+    @staticmethod
+    async def control_blind_v2(config, blind_id: str, position: int) -> bool:
+        """V2: Send HTTP request to control a single blind by ID
+
+        Args:
+            config: HubitatConfig object
+            blind_id: ID of the blind to control
+            position: Target position (0-100)
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            url = f"{config.hubitatUrl}/apps/api/{config.makerApiId}/devices/{blind_id}/setPosition/{position}?access_token={config.accessToken}"
+
+            try:
+                response = await client.get(url)
+                if response.status_code == 200:
+                    logger.info(f"Successfully set blind {blind_id} to {position}%")
+                    return True
+                else:
+                    logger.error(
+                        f"Failed to control blind {blind_id}: HTTP {response.status_code} - {response.text}"
+                    )
+                    return False
+            except Exception as e:
+                logger.error(f"Error controlling blind {blind_id}: {e}")
+                return False

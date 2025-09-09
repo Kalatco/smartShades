@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from agent.smart_shades_agent import SmartShadesAgent
+from agent.smart_shades_agent_v2 import SmartShadesAgentV2
 from api import root, rooms, schedules
 
 # Load environment variables
@@ -39,23 +39,23 @@ async def lifespan(app: FastAPI):
     global agent
 
     # Startup
-    logger.info("Starting Smart Shades Agent...")
-    agent = SmartShadesAgent()
+    logger.info("Starting Smart Shades Agent V2...")
+    agent = SmartShadesAgentV2()
     await agent.initialize()
 
     # Inject agent into API modules
     rooms.set_agent(agent)
     schedules.set_agent(agent)
 
-    logger.info("Smart Shades Agent initialized successfully")
+    logger.info("Smart Shades Agent V2 initialized successfully")
 
     yield
 
     # Shutdown
-    logger.info("Shutting down Smart Shades Agent...")
-    if agent and agent.scheduler:
-        agent.scheduler.shutdown()
-    logger.info("Smart Shades Agent shutdown complete")
+    logger.info("Shutting down Smart Shades Agent V2...")
+    if agent:
+        await agent.shutdown()
+    logger.info("Smart Shades Agent V2 shutdown complete")
 
 
 # Create FastAPI app

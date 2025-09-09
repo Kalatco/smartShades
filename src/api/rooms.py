@@ -150,6 +150,22 @@ async def control_shades_post(
                 f"Schedule created: {total_successful} blinds will be controlled"
             )
 
+        elif operation == "schedule_created":
+            # Schedule created response format (no immediate execution)
+            position = 50  # Default for scheduling
+            affected_blinds = []
+            schedule_description = result.get(
+                "schedule_description", "Schedule created"
+            )
+            next_run = result.get("next_run", "")
+
+            if next_run:
+                voice_message = (
+                    f"Schedule created: {schedule_description}. Next run: {next_run}"
+                )
+            else:
+                voice_message = f"Schedule created: {schedule_description}"
+
         else:
             # Fallback for unknown operation types
             position = 50

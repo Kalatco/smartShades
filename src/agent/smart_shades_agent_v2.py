@@ -118,7 +118,14 @@ class SmartShadesAgentV2:
         )
 
         # Add edges from schedule_management
-        workflow.add_edge("schedule_management", "blind_execution_planning")
+        workflow.add_conditional_edges(
+            "schedule_management",
+            self._route_after_schedule,
+            {
+                "end": END,
+                "error": "error_handler",
+            },
+        )
 
         # Add edges from blind_execution_planning
         workflow.add_edge("blind_execution_planning", "execute_blinds")
@@ -189,6 +196,17 @@ class SmartShadesAgentV2:
             # Store schedule result for later use
             state["context"] = state.get("context", {})
             state["context"]["schedule_result"] = result
+
+            # Create final response for scheduled commands (no immediate execution)
+            state["final_response"] = {
+                "message": f"Schedule created: {schedule_op.schedule_description}",
+                "room": state["room"],
+                "schedule_id": result.get("job_id"),
+                "next_run": result.get("next_run"),
+                "schedule_description": schedule_op.schedule_description,
+                "operation": "schedule_created",
+                "timestamp": datetime.now(),
+            }
 
         except Exception as e:
             logger.error(f"Error in schedule management: {e}")
@@ -314,6 +332,13 @@ class SmartShadesAgentV2:
             return "schedule"
         else:
             return "execute"
+
+    def _route_after_schedule(self, state: AgentState) -> Literal["end", "error"]:
+        """Route after schedule management - should end for scheduled commands"""
+        if state.get("error"):
+            return "error"
+        else:
+            return "end"
 
     async def process_request(
         self, command: str, room: str, context: Optional[Dict[str, Any]] = None

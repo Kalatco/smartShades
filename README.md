@@ -1,10 +1,10 @@
-# Smart Shades Agent V2
+# Smart Shades Agent
 
 A **LangGraph-based** intelligent agent for smart shades control and automation using Azure OpenAI and Hubitat Z-Wave integration.
 
 ## Overview
 
-This project implements an AI agent using **LangGraph** (part of the LangChain ecosystem) that can intelligently control Z-Wave smart shades through [Hubitat](https://hubitat.com/) using natural language commands. The V2 agent features a state-based workflow that can handle both immediate execution and intelligent scheduling with automatic duration support and solar intelligence.
+This project implements an AI agent using **LangGraph** (part of the LangChain ecosystem) that can intelligently control Z-Wave smart shades through [Hubitat](https://hubitat.com/) using natural language commands. The agent features a state-based workflow that can handle both immediate execution and intelligent scheduling with automatic duration support and solar intelligence.
 
 ## Features
 

@@ -51,7 +51,7 @@ class SolarCalculator:
 
         try:
             # Use Nominatim (free OpenStreetMap geocoding service)
-            geolocator = Nominatim(user_agent="smart_shades_agent")
+            geolocator = Nominatim(user_agent="smart_shades_agent_v2")
             location_result = geolocator.geocode(city, timeout=10)
 
             if location_result:

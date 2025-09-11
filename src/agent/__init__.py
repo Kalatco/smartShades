@@ -2,6 +2,6 @@
 Package initialization for agent
 """
 
-from .smart_shades_agent import SmartShadesAgent
+from .smart_shades_agent_v2 import SmartShadesAgentV2
 
-__all__ = ["SmartShadesAgent"]
+__all__ = ["SmartShadesAgentV2"]

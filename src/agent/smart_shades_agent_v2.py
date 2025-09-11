@@ -5,13 +5,9 @@ Smart Shades Agent V2 implementation using LangGraph
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List, TypedDict, Literal
-from pydantic import BaseModel, Field
 
 from langgraph.graph import StateGraph, END
-from langgraph.graph.message import add_messages
-from langchain_core.messages import HumanMessage, AIMessage
 
-from models.config import HubitatConfig
 from models.agent import (
     ExecutionTiming,
     ScheduleOperation,

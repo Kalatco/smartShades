@@ -26,22 +26,43 @@ class DurationParsingChain:
         - Extract the numeric value and time unit from duration expressions
         - Normalize time units to standard forms: "days", "weeks", "months"
         - Handle various natural language expressions for durations
+        - Handle single words like "week", "day", "month" as duration_value=1
 
         EXAMPLES:
         Input: "for the next week"
         Output: duration_value=1, duration_unit="weeks", total_days=7
 
+        Input: "week"
+        Output: duration_value=1, duration_unit="weeks", total_days=7
+
         Input: "for 3 days"
         Output: duration_value=3, duration_unit="days", total_days=3
 
+        Input: "3 days"
+        Output: duration_value=3, duration_unit="days", total_days=3
+
+        Input: "days"
+        Output: duration_value=1, duration_unit="days", total_days=1
+
         Input: "for two weeks"
+        Output: duration_value=2, duration_unit="weeks", total_days=14
+
+        Input: "two weeks"
         Output: duration_value=2, duration_unit="weeks", total_days=14
 
         Input: "for a month"
         Output: duration_value=1, duration_unit="months", total_days=30
 
+        Input: "month"
+        Output: duration_value=1, duration_unit="months", total_days=30
+
         Input: "for the next 5 days"
         Output: duration_value=5, duration_unit="days", total_days=5
+
+        SINGLE WORD HANDLING:
+        - "day" → duration_value=1, duration_unit="days", total_days=1
+        - "week" → duration_value=1, duration_unit="weeks", total_days=7
+        - "month" → duration_value=1, duration_unit="months", total_days=30
 
         NUMERIC WORD CONVERSION:
         - "a", "one" → 1
@@ -60,7 +81,8 @@ class DurationParsingChain:
         - weeks: duration_value × 7
         - months: duration_value × 30 (approximate)
 
-        If duration cannot be parsed, set all values to null.
+        If duration cannot be parsed, set all values to null and is_valid=false.
+        Always set is_valid=true for successfully parsed durations.
 
         {format_instructions}"""
 

@@ -1,17 +1,18 @@
-# Smart Shades Agent
+# Smart Shades Agent V2
 
-A LangChain-based intelligent agent for smart shades control and automation using Azure OpenAI and Hubitat Z-Wave integration.
+A **LangGraph-based** intelligent agent for smart shades control and automation using Azure OpenAI and Hubitat Z-Wave integration.
 
 ## Overview
 
-This project implements an AI agent using LangChain that can intelligently control Z-Wave smart shades through [Hubitat](https://hubitat.com/) using natural language commands. The agent integrates with Hubitat's Maker API for IoT device control and uses Azure OpenAI for intelligent command interpretation with solar intelligence features.
+This project implements an AI agent using **LangGraph** (part of the LangChain ecosystem) that can intelligently control Z-Wave smart shades through [Hubitat](https://hubitat.com/) using natural language commands. The V2 agent features a state-based workflow that can handle both immediate execution and intelligent scheduling with automatic duration support and solar intelligence.
 
 ## Features
 
-- **Natural Language Control**: "open the front shade", "close all blinds", "block the sun", "im starting a movie"
-- **Multi-Blind Operations**: "open the side window halfway, and front window fully"
-- **Room-specific and house-wide control**
-- **Solar Intelligence**: Automatic sunrise/sunset scheduling for automated blinds
+- **Natural Language Control**: "Open the front shade", "close all blinds", "Im starting a movie"
+- **Multi-Blind Operations**: "Open the side window halfway, and front window fully"
+- **Room-specific and house-wide control**: "Close all the blinds in the house 9 and 3 quarters"
+- **Solar Intelligence**: "Close the blinds 30 minutes after sunset today", "Open the blinds at sunrise"
+- **Smart Scheduling**: "Open the blinds at 9am everyday", "close the blinds everyday after sunset"
 - **Specific blind targeting by name or keyword**
 - **RESTful API** for external integrations (Apple Shortcuts & Siri, Home Assistant, etc.)
 - **Structured Output Parsing**: Pydantic models ensure reliable command interpretation
@@ -19,78 +20,55 @@ This project implements an AI agent using LangChain that can intelligently contr
 ## Architecture Overview
 
 ```mermaid
-graph TD
-    A[User Command] --> B[FastAPI Endpoint]
-    B --> C[SmartShadesAgent]
-    
-    C --> D[HouseWideDetectionChain]
-    D --> E[Azure OpenAI]
-    E --> D
-    D --> F{House-wide?}
-    
-    C --> G[ShadeAnalysisChain]
-    G --> E
-    G --> H[SolarUtils - Sunrise/Sunset Only]
-    G --> I[HubitatUtils - Get Positions]
-    I --> J[Hubitat Hub]
-    
-    F --> K[BlindUtils - Target Selection]
-    G --> K
-    K --> L[HubitatUtils - Control Blinds]
-    L --> J
-    
-    J --> M[Z-Wave Smart Shades]
-    
-    C --> N[ExecutionResult]
-    N --> B
-    B --> O[JSON Response]
-    
-    subgraph "LangChain Pipeline"
-        D
-        G
-    end
-    
-    subgraph "Utility Modules"
-        H
-        I
-        L
-        K
-    end
-    
-    subgraph "External Systems"
-        E
-        J
-        M
-    end
-    
-    style C fill:#e1f5fe
-    style D fill:#f3e5f5
-    style G fill:#f3e5f5
-    style H fill:#e8f5e8
-    style I fill:#e8f5e8
-    style K fill:#e8f5e8
-    style L fill:#e8f5e8
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	execution_timing(execution_timing)
+	schedule_management(schedule_management)
+	blind_execution_planning(blind_execution_planning)
+	execute_blinds(execute_blinds)
+	error_handler(error_handler)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> execution_timing;
+	blind_execution_planning --> execute_blinds;
+	execution_timing -. &nbsp;execute&nbsp; .-> blind_execution_planning;
+	execution_timing -. &nbsp;error&nbsp; .-> error_handler;
+	execution_timing -. &nbsp;schedule&nbsp; .-> schedule_management;
+	schedule_management -. &nbsp;end&nbsp; .-> __end__;
+	schedule_management -. &nbsp;error&nbsp; .-> error_handler;
+	error_handler --> __end__;
+	execute_blinds --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
 ```
+
+### **LangGraph Workflow Nodes:**
+
+1. **`execution_timing`**: Analyzes user commands to determine if they require immediate execution or scheduling
+2. **`schedule_management`**: Handles scheduled operations with duration parsing and automatic cleanup  
+3. **`blind_execution_planning`**: Plans immediate blind control operations with intelligent targeting
+4. **`execute_blinds`**: Executes blind control commands via Hubitat API
+5. **`error_handler`**: Handles errors and provides user-friendly error messages
+
+### **Key Components:**
+
+- **LangGraph StateGraph**: Manages workflow state and routing decisions
+- **Azure OpenAI Integration**: Powers natural language understanding across all chains
+- **APScheduler**: Handles scheduled operations with solar time support
+- **Duration Parsing**: LLM-based parsing of natural language durations ("for the next week")
+- **Solar Utils**: Sunrise/sunset calculations with timezone support
+- **Hubitat Integration**: Direct Z-Wave device control through Maker API
 
 ## How It Works
 
 1. **Command Reception**: User sends natural language command via REST API
-2. **House-wide Detection**: LangChain chain determines if command affects entire house or specific room
-3. **Command Analysis**: LangChain chain analyzes command with current blind positions
-4. **Blind Targeting**: Utility modules determine which specific blinds to control
+2. **Execution Timing Analysis**: LangGraph determines if command is immediate or scheduled
+3. **Routing Decision**: Commands are routed to either blind execution planning or schedule management
+4. **Command Processing**: 
+   - **Immediate**: Blind execution planning analyzes command and targets specific blinds
+   - **Scheduled**: Schedule management creates schedules with duration parsing and solar time support
 5. **Execution**: Commands sent to Hubitat hub which controls Z-Wave devices
-6. **Response**: Structured response returned to user
-
-Note: Solar position analysis has been removed. Only sunrise/sunset scheduling is supported.
-
-## More Voice Commands Examples
-
-- **Basic Control**: "Open the blinds", "Close all shades", "Set to 75 percent"
-- **Multi-Blind**: "Open the side window halfway, and front window fully"
-- **Solar-Aware**: "Schedule to open at sunrise", "Close at sunset"
-- **Room-Specific**: "Close all blinds in the bedroom", "Open living room shades"
-- **Complex Multi-Commands**: "Close the north window completely and set the east window to 30%"
-- **Contextual**: "It's too bright in here", "Prepare for movie time"
+6. **Response**: Structured response returned to user with execution results
 
 ## API Endpoints
 
@@ -100,6 +78,9 @@ The Smart Shades Agent provides a comprehensive REST API:
 |----------|---------|-------------|
 | `/rooms/{room}/control` | POST | Control blinds with natural language |
 | `/rooms/{room}/status` | GET | Get current blind positions |
+| `/rooms/{room}/schedules` | GET | List active schedules for room |
+| `/rooms/{room}/schedules` | POST | Create new schedule for room |
+| `/rooms/{room}/schedules/{schedule_id}` | DELETE | Delete specific schedule |
 | `/rooms/{room}/solar` | GET | Get sunrise/sunset times for scheduling |
 | `/rooms` | GET | List all available rooms |
 | `/docs` | GET | Swagger documentation |
@@ -254,16 +235,22 @@ docker run -p 8000:8000 --env-file .env smart-shades-agent
 
 ```
 ├── src/
-│   ├── agent/          # LangChain agent implementation
+│   ├── agent/          # LangGraph agent implementation (V2)
 │   ├── chains/         # LangChain chains for command processing
-│   ├── models/         # Data models and Pydantic schemas
-│   ├── utils/          # Utility modules (solar, hubitat, blind logic)
+│   │   ├── execution_timing.py      # Immediate vs scheduled detection
+│   │   ├── schedule_management.py   # Schedule creation and management
+│   │   ├── duration_parsing.py      # Natural language duration parsing
+│   │   └── blind_execution_planning_v2.py  # Immediate execution planning
+│   ├── models/         # Pydantic data models and schemas
+│   ├── utils/          # Utility modules (solar, hubitat, scheduling)
+│   ├── api/            # FastAPI endpoints and routers
 │   └── main.py         # FastAPI application entry point
 ├── blinds_config.json  # Hubitat device configuration
 ├── .env               # Environment variables (create from template)
 ├── .env.example       # Environment variables template
 ├── Dockerfile         # Container configuration
 ├── requirements.txt   # Python dependencies
+├── smart_shades_agent_v2_graph.mmd  # LangGraph workflow diagram
 └── README.md          # This file
 ```
 

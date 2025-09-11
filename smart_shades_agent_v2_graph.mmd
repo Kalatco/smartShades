@@ -1,0 +1,25 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	execution_timing(execution_timing)
+	schedule_management(schedule_management)
+	blind_execution_planning(blind_execution_planning)
+	execute_blinds(execute_blinds)
+	error_handler(error_handler)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> execution_timing;
+	blind_execution_planning --> execute_blinds;
+	execution_timing -. &nbsp;execute&nbsp; .-> blind_execution_planning;
+	execution_timing -. &nbsp;error&nbsp; .-> error_handler;
+	execution_timing -. &nbsp;schedule&nbsp; .-> schedule_management;
+	schedule_management -. &nbsp;end&nbsp; .-> __end__;
+	schedule_management -. &nbsp;error&nbsp; .-> error_handler;
+	error_handler --> __end__;
+	execute_blinds --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

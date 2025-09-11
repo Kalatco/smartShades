@@ -4,15 +4,15 @@ A **LangGraph-based** intelligent agent for smart shades control and automation 
 
 ## Overview
 
-This project implements an AI agent using **LangGraph** (part of the LangChain ecosystem) that can intelligently control Z-Wave smart shades through [Hubitat](https://hubitat.com/) using natural language commands. The agent features a state-based workflow that can handle both immediate execution and intelligent scheduling with automatic duration support and solar intelligence.
+This project implements an AI agent using **LangGraph** that can intelligently control Z-Wave smart shades through [Hubitat](https://hubitat.com/) using natural language commands. The agent features a state-based workflow that can handle both immediate execution and intelligent scheduling with automatic duration support and solar intelligence.
 
 ## Features
 
-- **Natural Language Control**: "Open the front shade", "close all blinds", "Im starting a movie"
+- **Natural Language Control**: "Open the front shade", "Close all blinds", "Im starting a movie"
 - **Multi-Blind Operations**: "Open the side window halfway, and front window fully"
 - **Room-specific and house-wide control**: "Close all the blinds in the house 9 and 3 quarters"
 - **Solar Intelligence**: "Close the blinds 30 minutes after sunset today", "Open the blinds at sunrise"
-- **Smart Scheduling**: "Open the blinds at 9am everyday", "close the blinds everyday after sunset"
+- **Smart Scheduling**: "Open the blinds at 9am everyday", "Close the blinds everyday after sunset"
 - **Specific blind targeting by name or keyword**
 - **RESTful API** for external integrations (Apple Shortcuts & Siri, Home Assistant, etc.)
 - **Structured Output Parsing**: Pydantic models ensure reliable command interpretation

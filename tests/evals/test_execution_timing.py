@@ -46,7 +46,7 @@ class TestExecutionTimingChain:
             mock_response = Mock()
             mock_response.content = '{"execution_type": "current", "reasoning": "No time reference, execute immediately"}'
             mock_llm.ainvoke.return_value = mock_response
-            
+
             result = await chain.ainvoke({"command": command})
 
             assert isinstance(result, ExecutionTiming)
@@ -57,19 +57,21 @@ class TestExecutionTimingChain:
     @pytest.mark.asyncio
     async def test_scheduled_execution_commands(self, chain, mock_llm):
         """Test commands that should be scheduled"""
-        
+
         # Single test case first to debug
         command = "close the blinds at 9pm"
-        
+
         # Patch the actual chain's ainvoke method to return what we want
         expected_result = ExecutionTiming(
-            execution_type="scheduled", 
-            reasoning="Time reference found, schedule for later"
+            execution_type="scheduled",
+            reasoning="Time reference found, schedule for later",
         )
-        
-        with patch.object(chain, 'ainvoke', return_value=expected_result) as mock_ainvoke:
+
+        with patch.object(
+            chain, "ainvoke", return_value=expected_result
+        ) as mock_ainvoke:
             result = await chain.ainvoke({"command": command})
-            
+
             assert isinstance(result, ExecutionTiming)
             assert (
                 result.execution_type == "scheduled"
@@ -89,7 +91,7 @@ class TestExecutionTimingChain:
             mock_response = Mock()
             mock_response.content = f'{{"execution_type": "{case["expected"]}", "reasoning": "Edge case handling"}}'
             mock_llm.ainvoke.return_value = mock_response
-            
+
             result = await chain.ainvoke({"command": case["command"]})
 
             assert isinstance(result, ExecutionTiming)

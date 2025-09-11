@@ -12,14 +12,24 @@ from .api import (
     WindowExposure,
     SolarInfo,
     SolarResponse,
+    ScheduleRequest,
+    ScheduleInfo,
+    ScheduleResponse,
+    ScheduleListResponse,
 )
 
 # Agent models (for LangChain/internal processing)
 from .agent import (
     HouseWideDetection,
+    ExecutionTiming,
+    ScheduleOperation,
+    DurationInfo,
     BlindOperation,
     ShadeAnalysis,
     ExecutionResult,
+    RoomBlindsExecution,
+    BlindExecutionRequest,
+    BlindExecutionResult,
 )
 
 # Configuration models
@@ -39,11 +49,21 @@ __all__ = [
     "WindowExposure",
     "SolarInfo",
     "SolarResponse",
+    "ScheduleRequest",
+    "ScheduleInfo",
+    "ScheduleResponse",
+    "ScheduleListResponse",
     # Agent models
     "HouseWideDetection",
+    "ExecutionTiming",
+    "ScheduleOperation",
+    "DurationInfo",
     "BlindOperation",
     "ShadeAnalysis",
     "ExecutionResult",
+    "RoomBlindsExecution",
+    "BlindExecutionRequest",
+    "BlindExecutionResult",
     # Config models
     "BlindConfig",
     "RoomConfig",

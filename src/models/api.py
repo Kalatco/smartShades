@@ -55,39 +55,6 @@ class RoomsResponse(BaseModel):
     )
 
 
-class WindowExposure(BaseModel):
-    """Sun exposure information for a specific window"""
-
-    orientation: str = Field(..., description="Window orientation")
-    is_sunny: bool = Field(
-        ..., description="Whether the window is receiving direct sunlight"
-    )
-    sun_intensity: float = Field(
-        ..., ge=0, le=1, description="Sun intensity factor (0-1)"
-    )
-
-
-class SolarInfo(BaseModel):
-    """Solar timing information for scheduling"""
-
-    sunrise: Optional[str] = Field(None, description="Sunrise time in local timezone")
-    sunset: Optional[str] = Field(None, description="Sunset time in local timezone")
-    current_time: Optional[str] = Field(
-        None, description="Current time in local timezone"
-    )
-    timezone: Optional[str] = Field(None, description="Local timezone")
-
-
-class SolarResponse(BaseModel):
-    """Response for solar information endpoint"""
-
-    room: str = Field(..., description="Room name")
-    solar_data: Dict[str, Any] = Field(
-        ...,
-        description="Solar timing data for scheduling (sunrise/sunset only)",
-    )
-
-
 class ScheduleRequest(BaseModel):
     """Request model for creating or modifying a schedule"""
 

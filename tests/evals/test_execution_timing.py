@@ -3,13 +3,7 @@ Tests for Execution Timing Chain - Fixed Version
 """
 
 import pytest
-import asyncio
-import sys
-import os
 from unittest.mock import AsyncMock, Mock, patch
-
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from chains.execution_timing import ExecutionTimingChain
 from models.agent import ExecutionTiming

@@ -3,13 +3,7 @@ Tests for Blind Execution Planning Chain
 """
 
 import pytest
-import asyncio
-import sys
-import os
 from unittest.mock import AsyncMock, patch
-
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from chains.blind_execution_planning_v2 import BlindExecutionPlanningChain
 from models.agent import BlindExecutionRequest, RoomBlindsExecution

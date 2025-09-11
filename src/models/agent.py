@@ -7,14 +7,6 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 
-class HouseWideDetection(BaseModel):
-    """Result of house-wide command detection"""
-
-    is_house_wide: bool = Field(
-        ..., description="Whether the command is meant for the entire house"
-    )
-
-
 class ExecutionTiming(BaseModel):
     """Determines if command is for immediate or scheduled execution"""
 
@@ -96,23 +88,6 @@ class ShadeAnalysis(BaseModel):
         ..., description="Control scope"
     )
     reasoning: str = Field(..., description="Overall explanation of the decision")
-
-
-class ExecutionResult(BaseModel):
-    """Result of shade control execution"""
-
-    executed_blinds: List[str] = Field(
-        default_factory=list, description="Names of blinds that were controlled"
-    )
-    affected_rooms: List[str] = Field(
-        default_factory=list, description="Rooms that were affected"
-    )
-    total_blinds: int = Field(
-        default=0, description="Total number of blinds controlled"
-    )
-    position: int = Field(..., ge=0, le=100, description="Position that was set")
-    scope: str = Field(..., description="Control scope that was executed")
-    reasoning: str = Field(..., description="Explanation of what was done")
 
 
 class RoomBlindsExecution(BaseModel):
